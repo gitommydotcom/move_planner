@@ -1,7 +1,5 @@
 {
   "name": "move-planner",
-  "version": "1.0.0",
-  "dependencies": {
-    "@netlify/blobs": "^8.1.0"
-  }
+  "version": "2.0.0",
+  "dependencies": {}
 }

@@ -6,6 +6,7 @@
 <title>Move — Editorial Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 /* ═══════ VARIABLES ═══════ */
 :root {
@@ -781,101 +782,78 @@ hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
 </style>
 </head>
 <body>
-<!-- ═══════ LOGIN ═══════ -->
-<div class="login-screen" id="login-screen">
-  <div class="login-box">
-    <div class="logo-move">MOVE</div>
-    <div class="logo-sub">Editorial Planner</div>
-    <input type="password" id="login-pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
-    <div class="login-err" id="login-err"></div>
-    <button class="btn btn-primary" onclick="doLogin()" style="width:100%">Entra</button>
-  </div>
-</div>
-
-<!-- ═══════ ONBOARDING ═══════ -->
-<div class="onboarding-screen" id="onboarding-screen">
+<!-- ═══════ AUTH ═══════ -->
+<div class="onboarding-screen" id="auth-screen">
   <div class="onboarding-box">
     <div class="ob-header">
       <div class="logo-move">MOVE</div>
       <div class="logo-sub">Editorial Planner</div>
     </div>
-    <div class="ob-steps">
-      <div class="ob-step-dot active" id="ob-dot-0"></div>
-      <div class="ob-step-dot" id="ob-dot-1"></div>
-      <div class="ob-step-dot" id="ob-dot-2"></div>
-    </div>
 
-    <!-- Step 0: Scelta percorso -->
-    <div id="ob-step-0">
-      <div class="ob-title">Benvenuto</div>
-      <div class="ob-sub">Come vuoi procedere?</div>
-      <div class="ob-option selected" id="ob-path-new" onclick="obSelectPath('new')">
-        <strong>Primo accesso</strong>
-        <span>Crea il tuo account Move da zero</span>
-      </div>
-      <div class="ob-option" id="ob-path-existing" onclick="obSelectPath('existing')">
-        <strong>Ho già un account</strong>
-        <span>Recupera i dati da un altro dispositivo tramite Codice Sync</span>
-      </div>
-      <button class="btn btn-primary" onclick="obGoFromPath()" style="width:100%;margin-top:12px">Continua →</button>
-    </div>
-
-    <!-- Step 1A: Nuova password -->
-    <div id="ob-step-1a" style="display:none">
-      <div class="ob-title">Scegli una password</div>
-      <div class="ob-sub">La userai ogni volta che apri Move su questo dispositivo.</div>
-      <div class="ob-field"><input type="password" id="ob-pw" placeholder="Password" onkeydown="if(event.key==='Enter')obNext1a()"></div>
-      <div class="ob-field"><input type="password" id="ob-pw2" placeholder="Conferma password" onkeydown="if(event.key==='Enter')obNext1a()"></div>
-      <div class="ob-err" id="ob-err-1a"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="obGoStep('0')">← Indietro</button>
-        <button class="btn btn-primary" onclick="obNext1a()" style="flex:1">Continua →</button>
+    <!-- Login -->
+    <div id="auth-view-login">
+      <div class="ob-title">Accedi</div>
+      <div class="ob-sub">Email e password del tuo account Move.</div>
+      <div class="ob-field"><input type="email" id="auth-login-email" placeholder="Email" autocomplete="email"></div>
+      <div class="ob-field"><input type="password" id="auth-login-pw" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()"></div>
+      <div class="ob-err" id="auth-login-err"></div>
+      <div class="loader" id="auth-login-loader" style="margin:8px 0"><div class="spin"></div><span>Accesso in corso…</span></div>
+      <button class="btn btn-primary" onclick="authLogin()" style="width:100%">Accedi →</button>
+      <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:12px">
+        <span style="color:var(--accent);cursor:pointer" onclick="authShow('signup')">Crea un account</span>
+        <span style="color:var(--text3);cursor:pointer" onclick="authShow('reset')">Password dimenticata?</span>
       </div>
     </div>
 
-    <!-- Step 2A: Cloud setup -->
-    <div id="ob-step-2a" style="display:none">
-      <div class="ob-title">Salvataggio dati</div>
-      <div class="ob-sub">Scegli dove conservare clienti, piani e storici.</div>
-      <div class="ob-option selected" id="ob-opt-create" onclick="obSelectCloud('create')">
-        <strong>Crea nuovo spazio cloud</strong>
-        <span>JSONBin configurato automaticamente — consigliato</span>
-      </div>
-      <div class="ob-option" id="ob-opt-skip" onclick="obSelectCloud('skip')">
-        <strong>Solo locale</strong>
-        <span>I dati restano nel browser, senza backup cloud</span>
-      </div>
-      <div class="ob-err" id="ob-err-2a"></div>
-      <div class="loader" id="ob-loader-2a" style="margin:10px 0"><div class="spin"></div><span>Creazione spazio cloud…</span></div>
-      <div style="display:flex;gap:8px;margin-top:16px">
-        <button class="btn btn-ghost" onclick="obGoStep('1a')">← Indietro</button>
-        <button class="btn btn-primary" onclick="obFinishNew()" id="ob-btn-new" style="flex:1">Entra →</button>
-      </div>
+    <!-- Signup -->
+    <div id="auth-view-signup" style="display:none">
+      <div class="ob-title">Crea il tuo account</div>
+      <div class="ob-sub">Riceverai una email per confermare l'indirizzo prima di accedere.</div>
+      <div class="ob-field"><input type="email" id="auth-signup-email" placeholder="Email" autocomplete="email"></div>
+      <div class="ob-field"><input type="password" id="auth-signup-pw" placeholder="Password (min. 8 caratteri)" autocomplete="new-password"></div>
+      <div class="ob-field"><input type="password" id="auth-signup-pw2" placeholder="Conferma password" autocomplete="new-password" onkeydown="if(event.key==='Enter')authSignup()"></div>
+      <div class="ob-err" id="auth-signup-err"></div>
+      <div id="auth-signup-ok" style="color:var(--accent);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+      <div class="loader" id="auth-signup-loader" style="margin:8px 0"><div class="spin"></div><span>Creazione account…</span></div>
+      <button class="btn btn-primary" onclick="authSignup()" style="width:100%">Crea account →</button>
+      <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--text3)">Hai già un account? <span style="color:var(--accent);cursor:pointer" onclick="authShow('login')">Accedi</span></div>
     </div>
 
-    <!-- Step 1B: Recupero tramite Bin ID -->
-    <div id="ob-step-1b" style="display:none">
-      <div class="ob-title">Recupera il tuo account</div>
-      <div class="ob-sub">Inserisci il Codice Sync che trovi in <strong>Impostazioni → Cloud Storage</strong> sull'altro dispositivo (pulsante 📋).</div>
-      <div class="ob-field"><input type="text" id="ob-recover-binid" placeholder="Codice Sync" onkeydown="if(event.key==='Enter')obLoadExisting()"></div>
-      <div class="ob-err" id="ob-err-1b"></div>
-      <div class="loader" id="ob-loader-1b" style="margin:10px 0"><div class="spin"></div><span>Caricamento dati…</span></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="obGoStep('0')">← Indietro</button>
-        <button class="btn btn-primary" onclick="obLoadExisting()" id="ob-btn-load" style="flex:1">Carica dati →</button>
-      </div>
+    <!-- Reset password -->
+    <div id="auth-view-reset" style="display:none">
+      <div class="ob-title">Reimposta la password</div>
+      <div class="ob-sub">Ti invieremo un link per scegliere una nuova password.</div>
+      <div class="ob-field"><input type="email" id="auth-reset-email" placeholder="Email" onkeydown="if(event.key==='Enter')authReset()"></div>
+      <div class="ob-err" id="auth-reset-err"></div>
+      <div id="auth-reset-ok" style="color:var(--accent);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+      <button class="btn btn-primary" onclick="authReset()" style="width:100%">Invia link →</button>
+      <div style="margin-top:14px;text-align:center;font-size:12px"><span style="color:var(--accent);cursor:pointer" onclick="authShow('login')">← Torna al login</span></div>
     </div>
 
-    <!-- Step 2B: Verifica password -->
-    <div id="ob-step-2b" style="display:none">
-      <div class="ob-title">Conferma la password</div>
-      <div class="ob-sub">Inserisci la password del tuo account Move per completare l'accesso.</div>
-      <div class="ob-field"><input type="password" id="ob-verify-pw" placeholder="Password" onkeydown="if(event.key==='Enter')obFinishExisting()"></div>
-      <div class="ob-err" id="ob-err-2b"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" onclick="obGoStep('1b')">← Indietro</button>
-        <button class="btn btn-primary" onclick="obFinishExisting()" style="flex:1">Entra →</button>
-      </div>
+    <!-- Set new password (after reset link) -->
+    <div id="auth-view-newpw" style="display:none">
+      <div class="ob-title">Scegli una nuova password</div>
+      <div class="ob-sub">Inserisci la nuova password per il tuo account.</div>
+      <div class="ob-field"><input type="password" id="auth-newpw-pw" placeholder="Nuova password (min. 8 caratteri)" autocomplete="new-password"></div>
+      <div class="ob-field"><input type="password" id="auth-newpw-pw2" placeholder="Conferma password" autocomplete="new-password" onkeydown="if(event.key==='Enter')authSetNewPassword()"></div>
+      <div class="ob-err" id="auth-newpw-err"></div>
+      <button class="btn btn-primary" onclick="authSetNewPassword()" style="width:100%">Salva password →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ MIGRATE LEGACY DATA ═══════ -->
+<div class="modal-overlay" id="migrate-modal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-title">Importa i tuoi dati esistenti</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6">
+      Abbiamo trovato dati salvati in questo browser dalla versione precedente di Move:
+      <span id="migrate-summary" style="color:var(--accent)"></span>.<br><br>
+      Vuoi importarli nel tuo account?
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="doLegacyMigrate(true)">✓ Importa i dati</button>
+      <button class="btn btn-ghost" onclick="doLegacyMigrate(false)">Inizia da zero</button>
     </div>
   </div>
 </div>
@@ -1028,14 +1006,9 @@ CAPTION: [testo completo con emoji e call-to-action]
 HASHTAG: [hashtag rilevanti]
 SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
       </div>
-      <div class="card"><div class="card-label">🤖 Scegli AI</div>
-        <div class="field-row">
-          <div class="field"><label>Provider</label><select id="g-provider" onchange="updateModelOptions()">
-            <option value="groq">Groq (gratuito)</option>
-            <option value="openrouter">OpenRouter (più modelli)</option>
-          </select></div>
-          <div class="field"><label>Modello</label><select id="g-model"></select></div>
-        </div>
+      <div class="card"><div class="card-label">🤖 Modello AI (Hugging Face)</div>
+        <div class="field"><label>Modello</label><select id="g-model"></select></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Modelli serverless via Hugging Face Inference. Llama 3.3 è il più capace; Mistral/Qwen sono più veloci.</div>
       </div>
       <div class="card" id="adv-card" style="display:none"><div class="card-label">Parametri avanzati</div>
         <div class="field-row">
@@ -1098,49 +1071,32 @@ SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
     </div>
 
     <!-- AI Providers -->
-    <div class="card"><div class="card-label">🤖 AI — Test e configurazione</div>
+    <div class="card"><div class="card-label">🤖 AI — Hugging Face</div>
       <div class="setting-row">
-        <div><div class="setting-label">Groq</div><div class="setting-sub">Gratuito — Llama, Mixtral</div></div>
-        <div class="setting-ctrl" style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="testGroq()">🧪 Test Groq</button></div>
-      </div>
-      <div class="setting-row">
-        <div><div class="setting-label">OpenRouter</div><div class="setting-sub">A consumo — Claude, GPT, Gemini…</div></div>
-        <div class="setting-ctrl" style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="testOpenRouter()">🧪 Test OpenRouter</button></div>
+        <div><div class="setting-label">Hugging Face Inference</div><div class="setting-sub">Modelli serverless: Llama, Mistral, Qwen…</div></div>
+        <div class="setting-ctrl" style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="testHF()">🧪 Test</button></div>
       </div>
       <div id="ai-test-result" style="font-size:12px;color:var(--text3);margin-top:8px"></div>
-      <div style="margin-top:12px;font-size:11px;color:var(--text3);cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">▸ Come configurare le API key su Netlify</div>
+      <div style="margin-top:12px;font-size:11px;color:var(--text3);cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">▸ Come configurare la API key su Netlify</div>
       <div style="display:none">
         <div class="steps-box" style="margin-top:8px">
-          <strong>Groq:</strong> <a href="https://console.groq.com" target="_blank">console.groq.com</a> → API Keys → copia → Netlify env var: <code>GROQ_API_KEY</code><br>
-          <strong>OpenRouter:</strong> <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> → crea key → Netlify env var: <code>OPENROUTER_API_KEY</code><br><br>
-          Su Netlify: Site configuration → Environment variables → scope: <strong>All</strong> → Trigger deploy
+          <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a> → New token → tipo <code>Read</code> → copia.<br>
+          Su Netlify: Site configuration → Environment variables → key <code>HUGGINGFACE_API_KEY</code> → scope <strong>All</strong> → Trigger deploy.<br><br>
+          Servono anche <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> per verificare l'autenticazione.
         </div>
       </div>
     </div>
 
-    <!-- Cloud Storage -->
-    <div class="card"><div class="card-label">☁️ Cloud Storage</div>
+    <!-- Account -->
+    <div class="card"><div class="card-label">👤 Account</div>
       <div class="setting-row">
-        <div><div class="setting-label">JSONBin</div><div class="setting-sub">Sincronizza i dati tra dispositivi</div></div>
-        <div class="setting-ctrl" style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="forceSyncToCloud()">☁ Sync ora</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadFromCloud()">↓ Carica</button>
-        </div>
+        <div><div class="setting-label">Email</div><div class="setting-sub" id="s-account-email">—</div></div>
+        <div class="setting-ctrl"><button class="btn btn-danger btn-sm" onclick="authLogout()">Esci</button></div>
       </div>
-      <div class="field" style="margin-top:10px">
-        <label>Codice Sync — <span style="color:var(--text3)">copialo per accedere da un altro dispositivo</span></label>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="s-binid" placeholder="Generato automaticamente al primo Sync" style="flex:1">
-          <button class="btn btn-ghost btn-sm" onclick="copyBinId()" title="Copia Codice Sync" style="flex-shrink:0">📋</button>
-        </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Sincronizzazione</div><div class="setting-sub">I dati vengono salvati nel tuo account Supabase.</div></div>
+        <div class="setting-ctrl"><span class="sync-badge" id="sync-status-settings">● cloud</span></div>
       </div>
-      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="saveBinId()">Salva codice</button><span id="settings-msg" style="font-size:12px;color:var(--text3)"></span></div>
-      <div style="margin-top:8px;font-size:11px;color:var(--text3);cursor:pointer" onclick="toggleSection(this)">▸ Come usare il Codice Sync</div>
-      <div style="display:none"><div class="steps-box" style="margin-top:8px">
-        <strong>1.</strong> Su questo dispositivo: clicca <strong>☁ Sync ora</strong> — il codice viene generato automaticamente<br>
-        <strong>2.</strong> Copia il Codice Sync con 📋<br>
-        <strong>3.</strong> Sul secondo dispositivo: apri Move → schermata di primo accesso → <em>Accedi con un account esistente</em> → incolla il codice
-      </div></div>
     </div>
 
     <!-- Meta Business -->
@@ -1168,12 +1124,6 @@ SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
         Richiede Canva <strong>Pro/Teams</strong>. <a href="https://www.canva.com/developers" target="_blank">canva.com/developers</a> → Nuova integrazione → Scopes: <code>design:content:read</code> <code>design:content:write</code> <code>asset:read</code> <code>asset:write</code> <code>brandtemplate:content:read</code> <code>folder:read</code> → Redirect URI = URL del tuo sito → Genera token OAuth2<br><br>
         <strong>Alternativa senza API:</strong> esporta come CSV → Canva → Bulk Create → scegli template → importa CSV → tutti i post vengono generati automaticamente.
       </div></div>
-    </div>
-
-    <!-- Password -->
-    <div class="card"><div class="card-label">🔒 Sicurezza</div>
-      <div class="field"><label>Cambia password</label><input type="password" id="s-newpw" placeholder="Nuova password"></div>
-      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="changePassword()">Cambia</button><span id="pw-msg" style="font-size:12px;color:var(--text3)"></span></div>
     </div>
 
     <!-- Data -->
@@ -1255,204 +1205,251 @@ SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
 </div>
 
 <script>
-// ═══════ CONSTANTS & STORAGE ═══════
-const KEYS={clients:'mv_clients',settings:'mv_settings',history:'mv_history',auth:'mv_auth',binId:'mv_binid'};
+// ═══════ SUPABASE CLIENT ═══════
+const SUPABASE_URL='https://zbwpkdqpylcianymsodo.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_XcghPRI3sCc_lA4NLC5YZA_t0e-BH3y';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 
-// ═══════ API HELPER ═══════
-function apiFetch(payload){
-  return fetch('/.netlify/functions/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+// ═══════ LEGACY localStorage KEYS (only for migration) ═══════
+const LEGACY_KEYS={clients:'mv_clients',settings:'mv_settings',history:'mv_history',metaCache:'mv_meta_cache'};
+
+// ═══════ IN-MEMORY STORE ═══════
+let _store={clients:[],history:[],settings:{model:'meta-llama/Llama-3.3-70B-Instruct',metaToken:'',canvaToken:''},metaCache:{}};
+let _currentUser=null;
+let _saveTimer=null;
+let _saving=false;
+
+// ═══════ API HELPER (adds Bearer token) ═══════
+async function apiFetch(payload){
+  const{data:{session}}=await sb.auth.getSession();
+  const headers={'Content-Type':'application/json'};
+  if(session?.access_token)headers['Authorization']='Bearer '+session.access_token;
+  return fetch('/.netlify/functions/ai',{method:'POST',headers,body:JSON.stringify(payload)});
 }
-function load(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}}
-function save(k,v){localStorage.setItem(k,JSON.stringify(v));scheduleSync()}
-function getClients(){return load(KEYS.clients)||[]}
-function saveClients(v){save(KEYS.clients,v);updateBadges()}
-function getSettings(){return load(KEYS.settings)||{model:'llama-3.3-70b-versatile',metaToken:'',canvaToken:''}}
-function saveSettingsObj(v){save(KEYS.settings,v)}
-function getHistory(){return load(KEYS.history)||[]}
-function saveHistory(v){save(KEYS.history,v);updateBadges()}
-function getAuth(){return load(KEYS.auth)||{pw:null}}
-function saveAuth(v){save(KEYS.auth,v)}
-function getBinId(){return localStorage.getItem(KEYS.binId)||''}
-function setBinId(v){localStorage.setItem(KEYS.binId,v)}
 
-// ═══════ CLOUD SYNC ═══════
-let syncTimer=null;
-function _setBadge(text,cls){const b=document.getElementById('sync-status');if(b){b.textContent=text;b.className='sync-badge'+(cls?' '+cls:'')}}
-function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncToCloud,3000)}
-async function syncToCloud(){
-  const key=getBinId();if(!key)return;
-  _setBadge('● sync…','syncing');
+// ═══════ DATA LAYER (sync reads, async background flush) ═══════
+function getClients(){return _store.clients}
+function saveClients(v){_store.clients=v;updateBadges();scheduleSave()}
+function getSettings(){return _store.settings}
+function saveSettingsObj(v){_store.settings=v;scheduleSave()}
+function getHistory(){return _store.history}
+function saveHistory(v){_store.history=v;updateBadges();scheduleSave()}
+function getMetaCache(){return _store.metaCache}
+function saveMetaCache(v){_store.metaCache=v;scheduleSave()}
+function getAllData(){return{clients:_store.clients,history:_store.history,settings:_store.settings,metaCache:_store.metaCache}}
+
+function _setBadge(text,cls){
+  const b=document.getElementById('sync-status');if(b){b.textContent=text;b.className='sync-badge'+(cls?' '+cls:'')}
+  const b2=document.getElementById('sync-status-settings');if(b2){b2.textContent=text;b2.className='sync-badge'+(cls?' '+cls:'')}
+}
+
+function scheduleSave(){clearTimeout(_saveTimer);_saveTimer=setTimeout(flushToCloud,1500)}
+
+async function flushToCloud(){
+  if(!_currentUser||_saving)return;
+  _saving=true;_setBadge('● sync…','syncing');
   try{
-    const resp=await apiFetch({action:'blob-save',key,data:getAllData()});
-    const r=await resp.json();
-    if(!resp.ok||r.error){_setBadge('● locale','');console.error('syncToCloud:',r.error?.message||resp.status);return}
+    const{error}=await sb.from('user_data').upsert({
+      user_id:_currentUser.id,
+      clients:_store.clients,
+      history:_store.history,
+      settings:_store.settings,
+      meta_cache:_store.metaCache,
+    });
+    if(error)throw error;
     _setBadge('● cloud','synced');
-  }catch(e){_setBadge('● locale','');console.error('syncToCloud:',e)}
-}
-async function forceSyncToCloud(){
-  let key=getBinId();
-  if(!key){key=crypto.randomUUID();setBinId(key);refreshBinIdField();}
-  _setBadge('● sync…','syncing');
-  try{
-    const resp=await apiFetch({action:'blob-save',key,data:getAllData()});
-    const r=await resp.json();
-    if(!resp.ok||r.error){const msg=r.error?.message||'HTTP '+resp.status;_setBadge('● locale','');showMsg('settings-msg','✗ '+msg);return}
-    _setBadge('● cloud','synced');showMsg('settings-msg','✓ Sincronizzato');
-  }catch(e){_setBadge('● locale','');showMsg('settings-msg','✗ '+e.message)}
-}
-async function loadFromCloud(silent=false){
-  const key=getBinId();
-  if(!key){if(!silent)showMsg('settings-msg','Nessun Codice Sync');return false}
-  try{
-    const resp=await apiFetch({action:'blob-load',key});
-    const r=await resp.json();
-    if(resp.status===404){
-      if(!silent)showMsg('settings-msg','Nessun dato trovato. Premi ☁ Sync ora dal dispositivo principale.');
-      else _setBadge('● nessun dato','');
-      return false;
-    }
-    if(!resp.ok||r.error){
-      const msg=r.error?.message||'HTTP '+resp.status;
-      if(!silent)showMsg('settings-msg','✗ '+msg);
-      else _setBadge('● errore','');
-      console.error('loadFromCloud:',msg);return false;
-    }
-    const data=r.record;
-    if(!data){if(!silent)showMsg('settings-msg','Cloud vuoto');return false}
-    if(data.clients)localStorage.setItem(KEYS.clients,JSON.stringify(data.clients));
-    if(data.history)localStorage.setItem(KEYS.history,JSON.stringify(data.history));
-    if(data.settings)localStorage.setItem(KEYS.settings,JSON.stringify(data.settings));
-    if(data.auth)localStorage.setItem(KEYS.auth,JSON.stringify(data.auth));
-    updateBadges();
-    if(!silent)showMsg('settings-msg','✓ Caricato');
-    refreshAll();return true;
   }catch(e){
-    if(!silent)showMsg('settings-msg','✗ '+e.message);
-    else _setBadge('● locale','');
-    console.error('loadFromCloud:',e);return false;
-  }
-}
-function getAllData(){return{clients:getClients(),history:getHistory(),settings:getSettings(),auth:getAuth(),savedAt:new Date().toISOString()}}
-function saveBinId(){setBinId(document.getElementById('s-binid').value.trim());showMsg('settings-msg','✓ Salvato')}
-
-// ═══════ AUTH ═══════
-function doLogin(){
-  const pw=document.getElementById('login-pw').value;
-  if(pw===getAuth().pw){sessionStorage.setItem('mv_logged','1');document.getElementById('login-screen').style.display='none';document.getElementById('app-shell').classList.add('active');boot()}
-  else{document.getElementById('login-err').textContent='Password errata'}
-}
-function changePassword(){
-  const np=document.getElementById('s-newpw').value.trim();
-  if(!np||np.length<2){showMsg('pw-msg','Password troppo corta');return}
-  const a=getAuth();a.pw=np;saveAuth(a);showMsg('pw-msg','✓ Password aggiornata');document.getElementById('s-newpw').value='';
-}
-function checkSession(){
-  if(sessionStorage.getItem('mv_logged')==='1'){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('app-shell').classList.add('active');
-    boot();return;
-  }
-  if(!getAuth().pw){
-    document.getElementById('login-screen').style.display='none';
-    document.getElementById('onboarding-screen').classList.add('active');
-  }
+    console.error('flushToCloud:',e);
+    _setBadge('● errore','');
+  }finally{_saving=false}
 }
 
-// ═══════ ONBOARDING ═══════
-let _obPath='new',_obPw='',_obCloud='create',_obCloudData=null;
+async function loadFromCloudUser(){
+  if(!_currentUser)return false;
+  const{data,error}=await sb.from('user_data').select('clients,history,settings,meta_cache').eq('user_id',_currentUser.id).maybeSingle();
+  if(error){console.error('loadFromCloudUser:',error);return false}
+  if(!data){
+    // First time: create empty row
+    await sb.from('user_data').insert({user_id:_currentUser.id});
+    return false;
+  }
+  _store.clients=data.clients||[];
+  _store.history=data.history||[];
+  _store.settings={model:'meta-llama/Llama-3.3-70B-Instruct',metaToken:'',canvaToken:'',...(data.settings||{})};
+  _store.metaCache=data.meta_cache||{};
+  return true;
+}
 
-function obGoStep(s){
-  ['0','1a','2a','1b','2b'].forEach(id=>{const el=document.getElementById('ob-step-'+id);if(el)el.style.display='none'});
-  document.getElementById('ob-step-'+s).style.display='block';
-  const p={0:0,'1a':1,'2a':2,'1b':1,'2b':2}[String(s)]??0;
-  [0,1,2].forEach(i=>{
-    const d=document.getElementById('ob-dot-'+i);if(!d)return;
-    d.className=i<p?'ob-step-dot done':i===p?'ob-step-dot active':'ob-step-dot';
+// ═══════ AUTH UI ═══════
+function authShow(view){
+  ['login','signup','reset','newpw'].forEach(v=>{
+    const el=document.getElementById('auth-view-'+v);if(el)el.style.display=v===view?'block':'none';
+  });
+  ['auth-login-err','auth-signup-err','auth-signup-ok','auth-reset-err','auth-reset-ok','auth-newpw-err'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.textContent='';
   });
 }
 
-function obSelectPath(p){
-  _obPath=p;
-  ['new','existing'].forEach(o=>document.getElementById('ob-path-'+o).classList.toggle('selected',o===p));
+async function authLogin(){
+  const email=document.getElementById('auth-login-email').value.trim();
+  const pw=document.getElementById('auth-login-pw').value;
+  const err=document.getElementById('auth-login-err');
+  const loader=document.getElementById('auth-login-loader');
+  err.textContent='';
+  if(!email||!pw){err.textContent='Email e password obbligatori.';return}
+  loader.classList.add('show');
+  const{error}=await sb.auth.signInWithPassword({email,password:pw});
+  loader.classList.remove('show');
+  if(error){err.textContent=error.message||'Accesso non riuscito.';return}
+  // onAuthStateChange will handle the rest
 }
 
-function obGoFromPath(){obGoStep(_obPath==='new'?'1a':'1b')}
-
-function obNext1a(){
-  const pw=document.getElementById('ob-pw').value;
-  const pw2=document.getElementById('ob-pw2').value;
-  const err=document.getElementById('ob-err-1a');
-  if(pw.length<2){err.textContent='Password troppo corta (min. 2 caratteri)';return}
-  if(pw!==pw2){err.textContent='Le password non coincidono';return}
-  _obPw=pw;err.textContent='';obGoStep('2a');
+async function authSignup(){
+  const email=document.getElementById('auth-signup-email').value.trim();
+  const pw=document.getElementById('auth-signup-pw').value;
+  const pw2=document.getElementById('auth-signup-pw2').value;
+  const err=document.getElementById('auth-signup-err');
+  const ok=document.getElementById('auth-signup-ok');
+  const loader=document.getElementById('auth-signup-loader');
+  err.textContent='';ok.textContent='';
+  if(!email||!pw){err.textContent='Email e password obbligatori.';return}
+  if(pw.length<8){err.textContent='Password troppo corta (min. 8 caratteri).';return}
+  if(pw!==pw2){err.textContent='Le password non coincidono.';return}
+  loader.classList.add('show');
+  const{data,error}=await sb.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+location.pathname}});
+  loader.classList.remove('show');
+  if(error){err.textContent=error.message||'Registrazione non riuscita.';return}
+  if(data.session){return}// auto-signed-in (email confirm disabled)
+  ok.textContent='✓ Account creato. Controlla la tua email per confermare l\'indirizzo.';
 }
 
-function obSelectCloud(opt){
-  _obCloud=opt;
-  ['create','skip'].forEach(o=>{const el=document.getElementById('ob-opt-'+o);if(el)el.classList.toggle('selected',o===opt)});
+async function authReset(){
+  const email=document.getElementById('auth-reset-email').value.trim();
+  const err=document.getElementById('auth-reset-err');
+  const ok=document.getElementById('auth-reset-ok');
+  err.textContent='';ok.textContent='';
+  if(!email){err.textContent='Inserisci la tua email.';return}
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){err.textContent=error.message||'Errore invio email.';return}
+  ok.textContent='✓ Email inviata. Controlla la tua casella e clicca il link.';
 }
 
-async function obFinishNew(){
-  const btn=document.getElementById('ob-btn-new');
-  const err=document.getElementById('ob-err-2a');
-  const loader=document.getElementById('ob-loader-2a');
-  btn.disabled=true;err.textContent='';
-  saveAuth({pw:_obPw});
-  if(_obCloud==='create'){
-    const key=crypto.randomUUID();setBinId(key);
-    loader.classList.add('show');
-    try{
-      const resp=await apiFetch({action:'blob-save',key,data:getAllData()});
-      const r=await resp.json();
-      if(!resp.ok||r.error)err.textContent=(r.error?.message||'Errore sync.')+' I dati restano in locale.';
-    }catch{err.textContent='Cloud non raggiungibile — i dati restano in locale per ora.'}
-    loader.classList.remove('show');
-  }
-  obEnterApp();
+async function authSetNewPassword(){
+  const pw=document.getElementById('auth-newpw-pw').value;
+  const pw2=document.getElementById('auth-newpw-pw2').value;
+  const err=document.getElementById('auth-newpw-err');
+  err.textContent='';
+  if(pw.length<8){err.textContent='Password troppo corta (min. 8 caratteri).';return}
+  if(pw!==pw2){err.textContent='Le password non coincidono.';return}
+  const{error}=await sb.auth.updateUser({password:pw});
+  if(error){err.textContent=error.message||'Errore aggiornamento password.';return}
+  // After successful update, user is signed in — onAuthStateChange takes over
 }
 
-async function obLoadExisting(){
-  const binId=document.getElementById('ob-recover-binid').value.trim();
-  const err=document.getElementById('ob-err-1b');
-  const loader=document.getElementById('ob-loader-1b');
-  const btn=document.getElementById('ob-btn-load');
-  if(!binId){err.textContent='Inserisci il Codice Sync';return}
-  err.textContent='';btn.disabled=true;loader.classList.add('show');
-  try{
-    const resp=await apiFetch({action:'blob-load',key:binId});
-    const r=await resp.json();
-    if(resp.status===404){err.textContent='Codice Sync non trovato. Verifica di averlo copiato correttamente.';btn.disabled=false;loader.classList.remove('show');return}
-    _obCloudData=r.record;
-    if(!_obCloudData){err.textContent='Nessun dato trovato per questo codice.';btn.disabled=false;loader.classList.remove('show');return}
-    setBinId(binId);
-    // Scrive direttamente in localStorage senza triggerare scheduleSync
-    if(_obCloudData.clients)localStorage.setItem(KEYS.clients,JSON.stringify(_obCloudData.clients));
-    if(_obCloudData.history)localStorage.setItem(KEYS.history,JSON.stringify(_obCloudData.history));
-    if(_obCloudData.settings)localStorage.setItem(KEYS.settings,JSON.stringify(_obCloudData.settings));
-    loader.classList.remove('show');
-    obGoStep('2b');
-  }catch(e){
-    err.textContent='Errore: '+e.message;
-    btn.disabled=false;loader.classList.remove('show');
-  }
+async function authLogout(){
+  await sb.auth.signOut();
+  location.reload();
 }
 
-function obFinishExisting(){
-  const pw=document.getElementById('ob-verify-pw').value;
-  const err=document.getElementById('ob-err-2b');
-  const cloudPw=_obCloudData?.auth?.pw;
-  if(cloudPw&&pw!==cloudPw){err.textContent='Password non corretta';return}
-  saveAuth({pw:cloudPw||pw});
-  obEnterApp();
+function showAuthScreen(){
+  document.getElementById('auth-screen').classList.add('active');
+  document.getElementById('app-shell').classList.remove('active');
 }
-
-function obEnterApp(){
-  sessionStorage.setItem('mv_logged','1');
-  document.getElementById('onboarding-screen').classList.remove('active');
+function hideAuthScreen(){
+  document.getElementById('auth-screen').classList.remove('active');
   document.getElementById('app-shell').classList.add('active');
-  boot();
 }
 
+// ═══════ LEGACY MIGRATION ═══════
+function readLegacyLocalStorage(){
+  try{
+    const c=JSON.parse(localStorage.getItem(LEGACY_KEYS.clients)||'null');
+    const h=JSON.parse(localStorage.getItem(LEGACY_KEYS.history)||'null');
+    const s=JSON.parse(localStorage.getItem(LEGACY_KEYS.settings)||'null');
+    const m=JSON.parse(localStorage.getItem(LEGACY_KEYS.metaCache)||'null');
+    return{clients:c||[],history:h||[],settings:s||{},metaCache:m||{}};
+  }catch{return null}
+}
+
+function hasLegacyData(){
+  const d=readLegacyLocalStorage();
+  return d&&((d.clients?.length>0)||(d.history?.length>0));
+}
+
+function maybePromptLegacyMigration(){
+  if(!hasLegacyData())return false;
+  const d=readLegacyLocalStorage();
+  const parts=[];
+  if(d.clients?.length)parts.push(d.clients.length+' clienti');
+  if(d.history?.length)parts.push(d.history.length+' piani');
+  document.getElementById('migrate-summary').textContent=parts.join(', ');
+  document.getElementById('migrate-modal').classList.add('show');
+  return true;
+}
+
+async function doLegacyMigrate(doImport){
+  document.getElementById('migrate-modal').classList.remove('show');
+  if(doImport){
+    const d=readLegacyLocalStorage();
+    if(d){
+      _store.clients=d.clients||[];
+      _store.history=d.history||[];
+      _store.settings={..._store.settings,...(d.settings||{})};
+      _store.metaCache=d.metaCache||{};
+      await flushToCloud();
+    }
+  }
+  // Clear legacy keys regardless of choice (so prompt doesn't re-appear)
+  Object.values(LEGACY_KEYS).forEach(k=>localStorage.removeItem(k));
+  ['mv_auth','mv_binid','mv_logged'].forEach(k=>{localStorage.removeItem(k);sessionStorage.removeItem(k)});
+  await afterAuthHydrated();
+}
+
+// ═══════ AUTH BOOT ═══════
+async function initAuth(){
+  // Handle recovery hash (Supabase puts #access_token=...&type=recovery in URL)
+  if(location.hash.includes('type=recovery')){
+    showAuthScreen();authShow('newpw');
+  }
+  const{data:{session}}=await sb.auth.getSession();
+  if(session?.user){
+    _currentUser=session.user;
+    await onSignedIn();
+  } else {
+    showAuthScreen();authShow('login');
+  }
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){showAuthScreen();authShow('newpw');return}
+    if(event==='SIGNED_IN'&&session?.user){
+      // Could be a fresh login or a password reset completion
+      if(_currentUser?.id===session.user.id)return;
+      _currentUser=session.user;
+      await onSignedIn();
+    }
+    if(event==='SIGNED_OUT'){
+      _currentUser=null;
+      _store={clients:[],history:[],settings:{model:'meta-llama/Llama-3.3-70B-Instruct',metaToken:'',canvaToken:''},metaCache:{}};
+      showAuthScreen();authShow('login');
+    }
+  });
+}
+
+async function onSignedIn(){
+  hideAuthScreen();
+  await loadFromCloudUser();
+  // If user has no cloud data yet AND legacy localStorage has data, prompt migration
+  const cloudEmpty=(_store.clients.length===0&&_store.history.length===0);
+  if(cloudEmpty&&maybePromptLegacyMigration())return;
+  await afterAuthHydrated();
+}
+
+async function afterAuthHydrated(){
+  // Update settings UI
+  const eEl=document.getElementById('s-account-email');
+  if(eEl&&_currentUser)eEl.textContent=_currentUser.email||'';
+  _setBadge('● cloud','synced');
+  await boot();
+}
 // ═══════ NAV ═══════
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1473,7 +1470,7 @@ let _dashSelectedIdx=-1;
 function renderDashboard(){
   const clients=getClients(),history=getHistory();
   _dashClients=clients;
-  const metaCache=load('mv_meta_cache')||{};
+  const metaCache=getMetaCache();
 
   // Top metrics
   const withPlans=clients.filter(c=>history.some(h=>h.clientId===c.id)).length;
@@ -1611,7 +1608,7 @@ function _selectDash(i){
 
 function _renderDashDetail(i){
   const c=_dashClients[i];if(!c)return;
-  const metaCache=load('mv_meta_cache')||{};
+  const metaCache=getMetaCache();
   const meta=metaCache[c.id];
   const history=getHistory();
   const cPlans=history.filter(h=>h.clientId===c.id);
@@ -1690,9 +1687,9 @@ async function _loadMeta(i){
       if(m.name==='page_impressions')reach=m.values?.[1]?.value||0;
       if(m.name==='page_engaged_users')engagement=m.values?.[1]?.value||0;
     });
-    const cache=load('mv_meta_cache')||{};
+    const cache=getMetaCache();
     cache[c.id]={followers,reach,engagement,fetchedAt:new Date().toISOString()};
-    localStorage.setItem('mv_meta_cache',JSON.stringify(cache));
+    saveMetaCache(cache);
     renderDashboard();
   }catch(e){
     alert('Errore Meta: '+e.message);
@@ -1794,12 +1791,15 @@ function genNext(s){document.querySelectorAll('.gen-step').forEach(x=>x.classLis
 function updateGenStepper(a){for(let i=0;i<4;i++){const el=document.getElementById('gsi-'+i);el.className='step-item'+(i<a?' done':i===a?' active':'');el.querySelector('.step-dot').textContent=i<a?'✓':(i+1)}}
 function resetGen(){genState={client:null,step:0,conversation:[],posts:[],rawText:'',currentHistoryId:null};['g-eventi','g-note','g-piano-prec','g-target','g-canva-link','mod-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('canva-link-info').style.display='none';renderGenClientGrid();updateGenStepper(0)}
 
-const GROQ_MODELS=[{v:'llama-3.3-70b-versatile',l:'Llama 3.3 70B (consigliato)'},{v:'llama-3.1-8b-instant',l:'Llama 3.1 8B (veloce)'},{v:'mixtral-8x7b-32768',l:'Mixtral 8x7B'}];
-const OR_MODELS=[{v:'anthropic/claude-haiku-4-5',l:'Claude Haiku 4.5'},{v:'anthropic/claude-sonnet-4-5',l:'Claude Sonnet 4.5'},{v:'meta-llama/llama-3.3-70b-instruct',l:'Llama 3.3 70B'},{v:'google/gemini-2.0-flash-001',l:'Gemini 2.0 Flash'},{v:'openai/gpt-4o-mini',l:'GPT-4o Mini'}];
+const HF_MODELS=[
+  {v:'meta-llama/Llama-3.3-70B-Instruct',l:'Llama 3.3 70B (consigliato)'},
+  {v:'meta-llama/Llama-3.1-8B-Instruct',l:'Llama 3.1 8B (veloce)'},
+  {v:'Qwen/Qwen2.5-72B-Instruct',l:'Qwen 2.5 72B'},
+  {v:'mistralai/Mistral-7B-Instruct-v0.3',l:'Mistral 7B'},
+];
 function updateModelOptions(){
-  const prov=document.getElementById('g-provider').value;const sel=document.getElementById('g-model');
-  const models=prov==='openrouter'?OR_MODELS:GROQ_MODELS;
-  sel.innerHTML=models.map(m=>`<option value="${m.v}">${m.l}</option>`).join('');
+  const sel=document.getElementById('g-model');if(!sel)return;
+  sel.innerHTML=HF_MODELS.map(m=>`<option value="${m.v}">${m.l}</option>`).join('');
 }
 
 function onCanvaLink(){
@@ -1869,11 +1869,10 @@ ISTRUZIONI:
 
 // ═══════ AI CALL ═══════
 async function callAI(messages,systemPrompt,retry=0){
-  const provider=document.getElementById('g-provider')?.value||'groq';
-  const model=document.getElementById('g-model')?.value||(provider==='openrouter'?'meta-llama/llama-3.3-70b-instruct':'llama-3.3-70b-versatile');
+  const model=document.getElementById('g-model')?.value||'meta-llama/Llama-3.3-70B-Instruct';
   const temp=parseFloat(document.getElementById('g-temperature')?.value||0.7);
   const maxT=parseInt(document.getElementById('g-max-tokens')?.value||4096);
-  const resp=await apiFetch({action:'chat',provider,model,max_tokens:maxT,temperature:temp,system:systemPrompt,messages});
+  const resp=await apiFetch({action:'chat',model,max_tokens:maxT,temperature:temp,system:systemPrompt,messages});
   if(resp.status===429||resp.status===529){if(retry<3){const w=retry===0?15:30;const m=document.getElementById('gen-loader-msg');if(m)m.textContent=`⏳ Rate limit. Attendo ${w}s…`;await sleep(w*1000);return callAI(messages,systemPrompt,retry+1)}throw new Error('Troppe richieste. Riprova.')}
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`Errore HTTP ${resp.status}`)}
   const d=await resp.json();return d.content?.map(b=>b.type==='text'?b.text:'').join('')||'';
@@ -2031,26 +2030,22 @@ function deleteHistoryItem(){if(!confirm('Eliminare?'))return;saveHistory(getHis
 
 // ═══════ SETTINGS ═══════
 function loadSettingsPage(){
-  document.getElementById('s-binid').value=getBinId();
   const s=getSettings();
   document.getElementById('s-meta-token').value=s.metaToken||'';
   document.getElementById('s-canva-token').value=s.canvaToken||'';
+  const em=document.getElementById('s-account-email');if(em)em.textContent=_currentUser?.email||'—';
   checkConfig();
 }
-function refreshBinIdField(){document.getElementById('s-binid').value=getBinId()}
-function copyBinId(){const id=getBinId();if(!id){showMsg('settings-msg','Nessun Codice Sync da copiare');return}copyText(id);showMsg('settings-msg','✓ Codice copiato')}
 function toggleSection(el){el.nextElementSibling.style.display=el.nextElementSibling.style.display==='none'?'block':'none'}
 function saveMetaToken(){const s=getSettings();s.metaToken=document.getElementById('s-meta-token').value.trim();saveSettingsObj(s);showMsg('meta-msg','✓ Salvato')}
 function saveCanvaToken(){const s=getSettings();s.canvaToken=document.getElementById('s-canva-token').value.trim();saveSettingsObj(s);showMsg('canva-msg','✓ Salvato')}
 async function checkConfig(){
   try{const r=await apiFetch({action:'check-config'});const d=await r.json();
     const s=getSettings();
-    const binId=getBinId();
     const items=[
-      {n:'Groq AI (gratuito)',ok:d.groq,sub:d.groq?null:'Imposta GROQ_API_KEY su Netlify'},
-      {n:'OpenRouter (alternativo)',ok:d.openrouter,sub:d.openrouter?null:'Imposta OPENROUTER_API_KEY su Netlify'},
-      {n:'Cloud Sync (Netlify Blobs)',ok:d.blobs,sub:d.blobs?null:'Funziona solo su Netlify, non in locale'},
-      {n:'Codice Sync',ok:!!binId,sub:binId?binId.slice(0,18)+'…':'Premi ☁ Sync ora per generarlo'},
+      {n:'Hugging Face',ok:d.huggingface,sub:d.huggingface?null:'Imposta HUGGINGFACE_API_KEY su Netlify'},
+      {n:'Supabase Auth',ok:d.supabase,sub:d.supabase?null:'Imposta SUPABASE_URL e SUPABASE_ANON_KEY su Netlify'},
+      {n:'Account',ok:!!_currentUser,sub:_currentUser?.email||'Non autenticato'},
       {n:'Meta Business',ok:!!s.metaToken,sub:null},
       {n:'Canva',ok:!!s.canvaToken,sub:null},
     ];
@@ -2058,22 +2053,15 @@ async function checkConfig(){
       <div><div class="setting-label">${i.n}</div>${i.sub?`<div class="setting-sub">${esc(i.sub)}</div>`:''}
       </div><div class="setting-ctrl"><span class="${i.ok?'config-ok':'config-err'}">${i.ok?'✓ OK':'✗ Mancante'}</span></div></div>`).join('');
     const dot=document.getElementById('api-dot'),txt=document.getElementById('api-status-text');
-    const aiOk=d.groq||d.openrouter;dot.className='api-dot '+(aiOk?'ok':'err');txt.textContent=aiOk?'AI pronto':'AI non configurata'}
+    if(dot)dot.className='api-dot '+(d.huggingface?'ok':'err');if(txt)txt.textContent=d.huggingface?'AI pronto':'AI non configurata'}
   catch(e){document.getElementById('config-status-list').innerHTML=`<div class="alert alert-err">${e.message}</div>`}
 }
-async function testGroq(){
-  const el=document.getElementById('ai-test-result');el.textContent='Testing Groq…';el.style.color='var(--text3)';
-  try{const r=await apiFetch({action:'chat',provider:'groq',messages:[{role:'user',content:'Rispondi solo: OK Groq funziona'}],max_tokens:20});
-    const d=await r.json();if(r.ok&&d.content?.[0]?.text){el.textContent='✓ Groq OK: '+d.content[0].text.substring(0,40);el.style.color='var(--accent)'}
-    else{el.textContent='✗ Groq: '+(d.error?.message||'Errore');el.style.color='var(--red)'}}
-  catch(e){el.textContent='✗ Groq: '+e.message;el.style.color='var(--red)'}
-}
-async function testOpenRouter(){
-  const el=document.getElementById('ai-test-result');el.textContent='Testing OpenRouter…';el.style.color='var(--text3)';
-  try{const r=await apiFetch({action:'chat',provider:'openrouter',model:'meta-llama/llama-3.3-70b-instruct',messages:[{role:'user',content:'Rispondi solo: OK OpenRouter funziona'}],max_tokens:20});
-    const d=await r.json();if(r.ok&&d.content?.[0]?.text){el.textContent='✓ OpenRouter OK: '+d.content[0].text.substring(0,40);el.style.color='var(--accent)'}
-    else{el.textContent='✗ OpenRouter: '+(d.error?.message||'Errore');el.style.color='var(--red)'}}
-  catch(e){el.textContent='✗ OpenRouter: '+e.message;el.style.color='var(--red)'}
+async function testHF(){
+  const el=document.getElementById('ai-test-result');el.textContent='Testing Hugging Face…';el.style.color='var(--text3)';
+  try{const r=await apiFetch({action:'chat',messages:[{role:'user',content:'Rispondi solo: OK Hugging Face funziona'}],max_tokens:20});
+    const d=await r.json();if(r.ok&&d.content?.[0]?.text){el.textContent='✓ HF OK: '+d.content[0].text.substring(0,60);el.style.color='var(--accent)'}
+    else{el.textContent='✗ HF: '+(d.error?.message||'Errore');el.style.color='var(--red)'}}
+  catch(e){el.textContent='✗ HF: '+e.message;el.style.color='var(--red)'}
 }
 async function testMetaAPI(){const s=getSettings();if(!s.metaToken){showMsg('meta-msg','Token non inserito');return}showMsg('meta-msg','Test Meta…');try{const r=await apiFetch({action:'meta',access_token:s.metaToken,endpoint:'/me?fields=name,id'});const d=await r.json();if(d.error)throw new Error(d.error.message);showMsg('meta-msg',`✓ Meta: ${d.name}`)}catch(e){showMsg('meta-msg','✗ '+e.message)}}
 function showMsg(id,msg){const el=document.getElementById(id);if(el)el.textContent=msg;setTimeout(()=>{if(el)el.textContent=''},6000)}
@@ -2081,18 +2069,22 @@ function showMsg(id,msg){const el=document.getElementById(id);if(el)el.textConte
 // ═══════ DATA ═══════
 function exportData(){const d=getAllData();delete d.auth;dl(JSON.stringify(d,null,2),'application/json',`move-${new Date().toISOString().slice(0,10)}.json`)}
 function importData(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.clients)saveClients(d.clients);if(d.history)saveHistory(d.history);if(d.settings)saveSettingsObj(d.settings);alert('Importato!');refreshAll()}catch{alert('File non valido.')}};r.readAsText(f)}
-function clearAll(){if(!confirm('Eliminare TUTTI i dati?'))return;if(!confirm('Conferma'))return;Object.values(KEYS).forEach(k=>localStorage.removeItem(k));location.reload()}
+async function clearAll(){
+  if(!confirm('Eliminare TUTTI i tuoi dati nel cloud?'))return;
+  if(!confirm('Conferma — questa azione non è reversibile.'))return;
+  _store={clients:[],history:[],settings:{model:'meta-llama/Llama-3.3-70B-Instruct',metaToken:'',canvaToken:''},metaCache:{}};
+  if(_currentUser){try{await sb.from('user_data').delete().eq('user_id',_currentUser.id)}catch(e){console.error(e)}}
+  location.reload();
+}
 
 // ═══════ UTILS ═══════
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function populateMonths(){const sel=document.getElementById('g-mese');const now=new Date();const mesi=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];sel.innerHTML='';for(let i=0;i<12;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);const o=document.createElement('option');o.value=`${mesi[d.getMonth()]} ${d.getFullYear()}`;o.textContent=o.value;sel.appendChild(o)}}
 
-// ═══════ DEFAULTS ═══════
+// ═══════ DEFAULTS (demo data for brand-new accounts) ═══════
 function initDefaults(){
   if(getClients().length>0)return;
-  // Scrive direttamente in localStorage senza triggerare scheduleSync
-  // (i dati demo non devono mai sovrascrivere il cloud)
-  localStorage.setItem(KEYS.clients,JSON.stringify([
+  saveClients([
     {id:'c_gaz',name:'Gaz',emoji:'🌮',tipo:'Street food, Montesilvano',settore:'Ristorazione',tono:'Diretto, ironico, zero-gourmet. Claim: EAT THE STREET. Linguaggio da strada, breve, viscerale.',hashtag:'#eatthestreet #streetfood #montesilvano',seo:'street food montesilvano, panini gourmet abruzzo',target:'Giovani 18-35',citta:'Montesilvano',createdAt:new Date().toISOString()},
     {id:'c_bacone',name:'Da Bacone',emoji:'🐟',tipo:'Ristorante di pesce',settore:'Ristorazione',tono:'Elegante ma familiare. Tradizione, mare Adriatico, famiglia. Rispetto per la materia prima.',hashtag:'#pescara #pesce #adriatico',seo:'ristorante pesce pescara, pesce fresco adriatico',target:'Famiglie, coppie',citta:'Pescara',createdAt:new Date().toISOString()},
     {id:'c_alchimia',name:'Alchimia',emoji:'🍕',tipo:'Pizzeria contemporanea',settore:'Ristorazione',tono:"Caldo e ironico. Usare sempre 'qui' invece del nome. Mai salesy.",hashtag:'#pizzapescara #impasto',seo:'pizza contemporanea pescara, pizzeria artigianale',target:'Foodies 25-40',citta:'Pescara',createdAt:new Date().toISOString()},
@@ -2101,25 +2093,18 @@ function initDefaults(){
     {id:'c_modify',name:'Modify Body Art',emoji:'💉',tipo:'Studio tatuaggi e piercing',settore:'Beauty & Wellness',tono:'Istituzionale ma accessibile. Sicurezza, professionalità, igiene.',hashtag:'#tatuaggi #piercing #pescara',seo:'tatuaggi pescara, piercing professionali',target:'Giovani 18-35',citta:'Pescara',createdAt:new Date().toISOString()},
     {id:'c_tim',name:'TIM Store',emoji:'📱',tipo:'Negozio telecom',settore:'Retail',tono:'Moderno, diretto, friendly. Chiaro sulle offerte.',hashtag:'#tim #telefonia #pescara',seo:'tim store pescara, offerte tim',target:'18-35',citta:'Pescara',createdAt:new Date().toISOString()},
     {id:'c_vodafone',name:'Vodafone Store',emoji:'📡',tipo:'Negozio telecom',settore:'Retail',tono:'Dinamico, orientato alle promozioni. Energia senza eccessi.',hashtag:'#vodafone #telefonia #pescara',seo:'vodafone pescara, offerte vodafone',target:'Giovani',citta:'Pescara',createdAt:new Date().toISOString()},
-  ]));
-  updateBadges();
+  ]);
 }
 
 // ═══════ BOOT ═══════
 async function boot(){
   await loadVoiceProfile();
-  populateMonths();updateModelOptions();updateBadges();
-  if(getBinId()){
-    _setBadge('● caricamento…','syncing');
-    const ok=await loadFromCloud(true).catch(()=>false);
-    _setBadge(ok?'● cloud':'● locale',ok?'synced':'');
-  } else {
-    _setBadge('● locale','');
-  }
+  populateMonths();updateModelOptions();
   initDefaults();
+  updateBadges();
   renderDashboard();renderGenClientGrid();
 }
-checkSession();
+initAuth();
 </script>
 </body>
 </html>

@@ -1,20 +1,40 @@
 // ═══════════════════════════════════════════════════════
-//  Move Editorial Planner — Netlify Function v2 (ESM)
-//  Storage: Netlify Blobs (built-in, zero config)
-//  AI: Groq (free) o OpenRouter
+//  Move Editorial Planner — Netlify Function v3 (ESM)
+//  AI:   Hugging Face Inference (chat completions API)
+//  Auth: verifies Supabase JWT (chat + meta require login)
 //  Meta: Graph API proxy
 // ═══════════════════════════════════════════════════════
-
-import { getStore } from '@netlify/blobs';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+const HF_BASE = 'https://router.huggingface.co/v1/chat/completions';
+const DEFAULT_HF_MODEL = 'meta-llama/Llama-3.3-70B-Instruct';
 
 function json(data, status = 200) {
   return Response.json(data, { status, headers: CORS });
+}
+
+async function verifySupabaseJWT(req) {
+  const auth = req.headers.get('authorization') || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token) return null;
+  const url = process.env.SUPABASE_URL;
+  const anon = process.env.SUPABASE_ANON_KEY;
+  if (!url || !anon) return null;
+  try {
+    const r = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return null;
+    const u = await r.json();
+    return u?.id ? u : null;
+  } catch {
+    return null;
+  }
 }
 
 export default async (req) => {
@@ -27,66 +47,47 @@ export default async (req) => {
 
   const { action = 'chat' } = body;
 
-  // ── Blob Save ──
-  if (action === 'blob-save') {
-    if (!body.key) return json({ error: { message: 'key richiesta.' } }, 400);
-    try {
-      const store = getStore('move-planner');
-      await store.setJSON(body.key, body.data);
-      return json({ ok: true });
-    } catch (e) {
-      return json({ error: { message: 'Errore salvataggio: ' + e.message } }, 502);
-    }
+  // ── Config check (public) ──
+  if (action === 'check-config') {
+    return json({
+      huggingface: !!process.env.HUGGINGFACE_API_KEY,
+      supabase: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
+    });
   }
 
-  // ── Blob Load ──
-  if (action === 'blob-load') {
-    if (!body.key) return json({ error: { message: 'key richiesta.' } }, 400);
-    try {
-      const store = getStore('move-planner');
-      const data = await store.get(body.key, { type: 'json' });
-      if (data === null) return json({ error: { message: 'Nessun dato trovato per questo Codice Sync.' } }, 404);
-      return json({ record: data });
-    } catch (e) {
-      return json({ error: { message: 'Errore caricamento: ' + e.message } }, 502);
-    }
-  }
+  // Everything below requires a logged-in user.
+  const user = await verifySupabaseJWT(req);
+  if (!user) return json({ error: { message: 'Autenticazione richiesta. Effettua il login.' } }, 401);
 
-  // ── AI Chat ──
+  // ── AI Chat (Hugging Face) ──
   if (action === 'chat') {
-    const provider = body.provider || 'groq';
-    let apiKey, apiUrl, extraHeaders = {};
-
-    if (provider === 'openrouter') {
-      apiKey = process.env.OPENROUTER_API_KEY;
-      apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
-      extraHeaders = { 'HTTP-Referer': process.env.URL || '', 'X-Title': 'Move Editorial Planner' };
-      if (!apiKey) return json({ error: { message: 'OPENROUTER_API_KEY non configurata su Netlify.' } }, 500);
-    } else {
-      apiKey = process.env.GROQ_API_KEY;
-      apiUrl = 'https://api.groq.com/openai/v1/chat/completions';
-      if (!apiKey) return json({ error: { message: 'GROQ_API_KEY non configurata.' } }, 500);
-    }
+    const apiKey = process.env.HUGGINGFACE_API_KEY;
+    if (!apiKey) return json({ error: { message: 'HUGGINGFACE_API_KEY non configurata su Netlify.' } }, 500);
 
     const messages = [...(body.messages || [])];
     if (body.system) messages.unshift({ role: 'system', content: body.system });
 
     try {
-      const resp = await fetch(apiUrl, {
+      const resp = await fetch(HF_BASE, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`, ...extraHeaders },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
-          model: body.model || (provider === 'openrouter' ? 'meta-llama/llama-3.3-70b-instruct' : 'llama-3.3-70b-versatile'),
-          max_tokens: Math.min(body.max_tokens || 4096, 8192),
-          temperature: body.temperature || 0.7,
+          model: body.model || DEFAULT_HF_MODEL,
           messages,
+          max_tokens: Math.min(body.max_tokens || 4096, 8192),
+          temperature: body.temperature ?? 0.7,
+          stream: false,
         }),
       });
       const data = await resp.json();
-      if (!resp.ok || data.error) return json({ error: { message: data.error?.message || `${provider} HTTP ${resp.status}` } }, resp.status || 500);
-      return json({ content: [{ type: 'text', text: data.choices?.[0]?.message?.content || '' }], model: data.model, usage: data.usage });
+      if (!resp.ok || data.error) {
+        const msg = data.error?.message || data.error || `Hugging Face HTTP ${resp.status}`;
+        return json({ error: { message: typeof msg === 'string' ? msg : JSON.stringify(msg) } }, resp.status || 500);
+      }
+      const text = data.choices?.[0]?.message?.content || '';
+      return json({ content: [{ type: 'text', text }], model: data.model, usage: data.usage });
     } catch (e) {
-      return json({ error: { message: `Errore ${provider}: ${e.message}` } }, 502);
+      return json({ error: { message: 'Errore Hugging Face: ' + e.message } }, 502);
     }
   }
 
@@ -102,11 +103,6 @@ export default async (req) => {
     } catch (e) {
       return json({ error: { message: 'Errore Meta API: ' + e.message } }, 502);
     }
-  }
-
-  // ── Config Check ──
-  if (action === 'check-config') {
-    return json({ groq: !!process.env.GROQ_API_KEY, openrouter: !!process.env.OPENROUTER_API_KEY, blobs: true });
   }
 
   return json({ error: { message: 'Azione non riconosciuta: ' + action } }, 400);

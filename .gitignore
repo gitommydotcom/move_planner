@@ -1,0 +1,4 @@
+.claude/
+move-planner/.netlify/
+.DS_Store
+node_modules/
