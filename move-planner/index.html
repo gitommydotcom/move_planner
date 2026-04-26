@@ -1,0 +1,2125 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Move — Editorial Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════ VARIABLES ═══════ */
+:root {
+  --bg: #0e0e0f;
+  --bg2: #161618;
+  --bg3: #1e1e21;
+  --bg4: #252528;
+  --border: #2e2e33;
+  --border2: #3a3a40;
+  --text: #f0eff0;
+  --text2: #9b9aa0;
+  --text3: #5e5d63;
+  --accent: #c8ff5a;
+  --accent-dim: rgba(200,255,90,.12);
+  --accent-dim2: rgba(200,255,90,.06);
+  --red: #ff5a5a;
+  --red-dim: rgba(255,90,90,.1);
+  --blue: #5a9fff;
+  --blue-dim: rgba(90,159,255,.1);
+  --amber: #ffb347;
+  --amber-dim: rgba(255,179,71,.1);
+  --purple: #c084fc;
+  --purple-dim: rgba(192,132,252,.1);
+  --radius: 10px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+/* ═══════ RESET ═══════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+/* ═══════ LOGIN ═══════ */
+.login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+.login-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px 36px;
+  width: 360px;
+  text-align: center;
+}
+
+.login-box .logo-move { font-family: var(--sans); font-size: 32px; font-weight: 800; color: var(--accent); margin-bottom: 4px; }
+.login-box .logo-sub { font-size: 11px; color: var(--text3); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 28px; }
+.login-box input { margin-bottom: 14px; text-align: center; font-size: 16px; letter-spacing: .1em; }
+.login-err { color: var(--red); font-size: 12px; margin-bottom: 10px; min-height: 18px; }
+
+/* ═══════ SHELL / LAYOUT ═══════ */
+.shell { display: none; height: 100vh; overflow: hidden; }
+.shell.active { display: flex; }
+
+.sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+/* ═══════ SIDEBAR ═══════ */
+.logo { padding: 20px 16px 14px; border-bottom: 1px solid var(--border); }
+.logo-move { font-family: var(--sans); font-size: 18px; font-weight: 800; color: var(--accent); line-height: 1; }
+.logo-sub { font-size: 10px; color: var(--text3); margin-top: 3px; letter-spacing: .08em; text-transform: uppercase; }
+
+.nav-section { padding: 12px 10px 6px; font-size: 10px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text2);
+  transition: all .15s;
+  margin: 1px 6px;
+}
+.nav-item:hover { background: var(--bg3); color: var(--text); }
+.nav-item.active { background: var(--accent-dim); color: var(--accent); }
+
+.nav-item .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+.nav-item.active .dot { background: var(--accent); }
+
+.nav-item .badge { margin-left: auto; font-size: 10px; background: var(--bg4); color: var(--text3); padding: 1px 5px; border-radius: 4px; }
+.nav-item.active .badge { background: var(--accent-dim); color: var(--accent); }
+
+.sidebar-footer { margin-top: auto; padding: 12px; border-top: 1px solid var(--border); }
+
+.api-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all .15s;
+}
+.api-status:hover { background: var(--bg3); color: var(--text2); }
+
+.api-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.api-dot.ok { background: var(--accent); }
+.api-dot.warn { background: var(--amber); }
+.api-dot.err { background: var(--red); }
+
+/* ═══════ TOPBAR / PAGE ═══════ */
+.topbar {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar-title { font-family: var(--sans); font-size: 17px; font-weight: 700; flex: 1; }
+
+.page { display: none; flex: 1; }
+.page.active { display: block; }
+.page-inner { padding: 28px; max-width: 900px; width: 100%; margin: 0 auto; }
+
+/* ═══════ CARD ═══════ */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.card-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 12px; }
+
+/* ═══════ FORM ═══════ */
+input, textarea, select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color .15s;
+  resize: vertical;
+}
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+input::placeholder, textarea::placeholder { color: var(--text3); }
+
+select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235e5d63' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+label { display: block; font-size: 11px; color: var(--text3); margin-bottom: 5px; letter-spacing: .04em; }
+
+.field { margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+.label-with-ai { display: flex; align-items: center; justify-content: space-between; }
+.label-with-ai label { margin-bottom: 0; }
+
+/* ═══════ BUTTONS ═══════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #0e0e0f; font-weight: 700; }
+.btn-primary:hover { background: #d8ff7a; }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+.btn-danger { background: var(--red-dim); border: 1px solid transparent; color: var(--red); }
+.btn-danger:hover { border-color: var(--red); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
+
+.btn-ai {
+  background: var(--purple-dim);
+  border: 1px solid rgba(192,132,252,.25);
+  color: var(--purple);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: var(--mono);
+}
+.btn-ai:hover { border-color: var(--purple); background: rgba(192,132,252,.2); }
+.btn-ai:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ═══════ TAGS & CHIPS ═══════ */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg4);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.tag .x { cursor: pointer; color: var(--text3); transition: color .1s; font-size: 14px; line-height: 1; }
+.tag .x:hover { color: var(--red); }
+.tag-accent { background: var(--accent-dim); border-color: rgba(200,255,90,.25); color: var(--accent); }
+
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--text2);
+  transition: all .15s;
+  user-select: none;
+}
+.chip:hover { border-color: var(--border2); }
+.chip.selected { background: var(--accent-dim); border-color: rgba(200,255,90,.3); color: var(--accent); }
+
+/* ═══════ ALERTS ═══════ */
+.alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; line-height: 1.5; }
+.alert-err  { background: var(--red-dim);   border: 1px solid rgba(255,90,90,.25);  color: var(--red); }
+.alert-ok   { background: var(--accent-dim); border: 1px solid rgba(200,255,90,.25); color: var(--accent); }
+.alert-info { background: var(--blue-dim);  border: 1px solid rgba(90,159,255,.25); color: var(--blue); }
+.alert-warn { background: var(--amber-dim); border: 1px solid rgba(255,179,71,.25); color: var(--amber); }
+.alert a { color: var(--accent); text-decoration: underline; }
+
+/* ═══════ MISC ═══════ */
+.section-title { font-family: var(--sans); font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 13px; }
+.empty-state .emo { font-size: 32px; display: block; margin-bottom: 10px; }
+
+/* ═══════ DASHBOARD ═══════ */
+.dash-wrap { padding: 20px 24px 32px; }
+
+/* Top metric cards */
+.dash-top-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.dash-metric-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 18px 20px 16px;
+  transition: border-color .2s, transform .2s cubic-bezier(.25,.8,.25,1);
+}
+.dash-metric-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.dash-metric-card.accent { border-top-color: var(--accent); }
+.dash-metric-card.warn { border-top-color: var(--amber); }
+.dash-metric-card.alert { border-top-color: var(--red); }
+.dash-metric-val {
+  font-family: var(--sans);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+.dash-metric-label {
+  font-size: 11px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.dash-metric-trend { font-size: 11px; margin-top: 10px; color: var(--text3); }
+.dash-metric-trend.up { color: var(--accent); }
+.dash-metric-trend.warn { color: var(--amber); }
+.dash-metric-trend.down { color: var(--red); }
+
+/* Section row header */
+.dash-row-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.dash-row-title {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.dash-row-sub { font-size: 11px; color: var(--text3); }
+
+/* Client bento grid */
+.dash-client-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.dash-client-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 16px 12px;
+  cursor: pointer;
+  position: relative;
+  transition: all .2s cubic-bezier(.25,.8,.25,1);
+}
+.dash-client-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+.dash-client-card.selected {
+  border-color: var(--accent);
+  background: linear-gradient(160deg, var(--accent-dim2), var(--bg2));
+}
+.dash-client-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.dc-emoji {
+  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  background: var(--bg3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dc-name {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dc-tipo { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.dc-meta-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 3px 7px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  border: 1px solid rgba(90,159,255,.2);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .15s;
+  font-family: var(--mono);
+}
+.dc-meta-btn:hover { background: rgba(90,159,255,.25); }
+.dc-meta-btn:disabled { opacity: .5; cursor: default; }
+
+.dc-chart { height: 44px; margin-bottom: 10px; overflow: hidden; }
+.dc-chart svg { width: 100%; height: 44px; }
+
+.dc-foot {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.dc-foot-item { text-align: center; }
+.dc-foot-item + .dc-foot-item { border-left: 1px solid var(--border); }
+.dc-foot-val {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dc-foot-lbl {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-top: 2px;
+}
+
+/* Client detail panel */
+.dash-detail-panel {
+  margin-top: 12px;
+  background: var(--bg2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.ddp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ddp-name {
+  font-family: var(--sans);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.ddp-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.ddp-cell {
+  background: var(--bg3);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.ddp-cell-val {
+  font-family: var(--sans);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.ddp-cell-lbl {
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-top: 3px;
+}
+
+/* Tips strip */
+.dash-tips-col { display: flex; flex-direction: column; gap: 6px; }
+.ai-tip {
+  padding: 10px 14px;
+  background: var(--bg2);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+.ai-tip strong { color: var(--text); }
+
+/* ═══════ CLIENTS ═══════ */
+.client-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  transition: border-color .15s;
+  cursor: pointer;
+}
+.client-list-item:hover { border-color: var(--border2); }
+.client-list-item .emoji { font-size: 24px; }
+.client-list-item .info { flex: 1; min-width: 0; }
+.client-list-item .cname { font-size: 14px; font-weight: 500; }
+.client-list-item .ctype { font-size: 11px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.client-list-item .actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* ═══════ STEPPER ═══════ */
+.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
+.step-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text3); }
+.step-item.active { color: var(--accent); }
+.step-item.done { color: var(--text2); }
+.step-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  flex-shrink: 0;
+  color: var(--text3);
+}
+.step-item.done .step-dot { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.step-item.active .step-dot { background: var(--accent); border-color: var(--accent); color: #0e0e0f; font-weight: 700; }
+.step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; }
+.gen-step { display: none; }
+.gen-step.active { display: block; }
+
+/* ═══════ CLIENT GRID (Generate step 0) ═══════ */
+.client-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.client-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: center;
+}
+.client-card:hover { border-color: var(--border2); background: var(--bg4); }
+.client-card.selected { border-color: var(--accent); background: var(--accent-dim2); }
+.client-card .emoji { font-size: 20px; display: block; margin-bottom: 5px; }
+.client-card .cname { font-size: 12px; font-weight: 500; }
+.client-card .ctype { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+/* ═══════ POSTS ═══════ */
+.post-block {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  transition: border-color .15s;
+}
+.post-block:hover { border-color: var(--border2); }
+
+.post-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.post-date-badge   { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-dim); border-radius: 5px; padding: 2px 8px; }
+.post-format-badge { font-size: 11px; color: var(--blue);  background: var(--blue-dim);  border-radius: 5px; padding: 2px 8px; }
+.post-obj-badge    { font-size: 11px; color: var(--amber); background: var(--amber-dim); border-radius: 5px; padding: 2px 8px; }
+
+.post-caption { font-size: 13px; line-height: 1.65; color: var(--text2); white-space: pre-wrap; word-break: break-word; }
+.post-caption.collapsed { max-height: 62px; overflow: hidden; position: relative; }
+.post-caption.collapsed::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 30px;
+  background: linear-gradient(transparent, var(--bg3));
+}
+
+.post-visual-desc {
+  font-size: 12px;
+  color: var(--purple);
+  background: var(--purple-dim);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.post-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.expand-link { font-size: 11px; color: var(--text3); cursor: pointer; }
+.expand-link:hover { color: var(--text2); }
+
+/* ═══════ HISTORY ═══════ */
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.history-item:hover { border-color: var(--border2); }
+.history-item .h-info { flex: 1; min-width: 0; }
+.history-item .h-title { font-size: 13px; font-weight: 500; }
+.history-item .h-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.history-item .h-count { font-size: 11px; color: var(--text3); flex-shrink: 0; margin-top: 2px; }
+
+/* ═══════ MODALS ═══════ */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-title {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-close { cursor: pointer; color: var(--text3); font-size: 20px; line-height: 1; }
+.modal-close:hover { color: var(--text); }
+
+.detail-tabs { display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+.detail-tab { padding: 10px 16px; font-size: 12px; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+.detail-tab:hover { color: var(--text2); }
+.detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ═══════ GENERATION PROGRESS ═══════ */
+.gen-progress {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: none;
+}
+.gen-progress.show { display: block; }
+
+.progress-bar-wrap { height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; margin-top: 10px; }
+.progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .4s ease; }
+
+.loader { display: none; align-items: center; gap: 10px; padding: 16px 0; color: var(--text3); font-size: 13px; }
+.loader.show { display: flex; }
+
+.spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════ SETTINGS ═══════ */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+.setting-row:last-child { border-bottom: none; }
+.setting-label { font-size: 13px; }
+.setting-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.setting-ctrl { flex-shrink: 0; }
+
+.config-ok  { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--accent-dim); color: var(--accent); }
+.config-err { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--red-dim);   color: var(--red); }
+
+.sync-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 2px 8px; border-radius: 4px; background: var(--bg4); color: var(--text3); }
+.sync-badge.synced  { background: var(--accent-dim); color: var(--accent); }
+.sync-badge.syncing { background: var(--amber-dim);  color: var(--amber); }
+
+.steps-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text2);
+}
+.steps-box strong { color: var(--text); }
+.steps-box code { background: var(--bg4); padding: 1px 5px; border-radius: 3px; font-size: 11px; color: var(--accent); }
+
+/* ═══════ ONBOARDING ═══════ */
+.onboarding-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+.onboarding-screen.active { display: flex; }
+
+.onboarding-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 36px;
+  width: 100%;
+  max-width: 460px;
+}
+
+.ob-header { text-align: center; margin-bottom: 28px; }
+
+.ob-steps { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 28px; }
+.ob-step-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); transition: all .2s; }
+.ob-step-dot.active { background: var(--accent); width: 20px; border-radius: 4px; }
+.ob-step-dot.done { background: var(--accent); opacity: .35; }
+
+.ob-title { font-family: var(--sans); font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+.ob-sub { font-size: 12px; color: var(--text3); margin-bottom: 20px; line-height: 1.6; }
+.ob-field { margin-bottom: 12px; }
+.ob-err { color: var(--red); font-size: 12px; min-height: 18px; margin-bottom: 8px; }
+
+.ob-option {
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ob-option:hover { border-color: var(--border2); }
+.ob-option.selected { border-color: var(--accent); background: var(--accent-dim2); }
+.ob-option strong { display: block; font-size: 13px; margin-bottom: 2px; }
+.ob-option span { font-size: 11px; color: var(--text3); }
+.ob-option.selected strong { color: var(--accent); }
+.ob-option.selected span { color: var(--text2); }
+
+/* ═══════ RESPONSIVE ═══════ */
+@media (max-width: 700px) {
+  .shell { flex-direction: column; height: auto; min-height: 100vh; }
+  .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+  .logo { padding: 12px 14px; border-bottom: none; border-right: 1px solid var(--border); }
+  .nav-section { display: none; }
+  .sidebar-footer { margin-top: 0; border-top: none; border-left: 1px solid var(--border); padding: 8px 12px; display: flex; align-items: center; }
+  .nav-item { font-size: 12px; padding: 6px 8px; }
+  .main { min-height: calc(100vh - 64px); overflow-y: auto; }
+  .page-inner { padding: 16px; }
+  .topbar { padding: 12px 16px; }
+  .client-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-top-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-client-grid { grid-template-columns: 1fr; }
+  .ddp-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-wrap { padding: 16px 16px 24px; }
+  .field-row, .field-row3 { grid-template-columns: 1fr; }
+  .modal { max-width: 100%; border-radius: 10px; }
+  .btn-row { flex-direction: column; }
+  .btn-row .btn { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+<!-- ═══════ LOGIN ═══════ -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="logo-move">MOVE</div>
+    <div class="logo-sub">Editorial Planner</div>
+    <input type="password" id="login-pw" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="login-err" id="login-err"></div>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%">Entra</button>
+  </div>
+</div>
+
+<!-- ═══════ ONBOARDING ═══════ -->
+<div class="onboarding-screen" id="onboarding-screen">
+  <div class="onboarding-box">
+    <div class="ob-header">
+      <div class="logo-move">MOVE</div>
+      <div class="logo-sub">Editorial Planner</div>
+    </div>
+    <div class="ob-steps">
+      <div class="ob-step-dot active" id="ob-dot-0"></div>
+      <div class="ob-step-dot" id="ob-dot-1"></div>
+      <div class="ob-step-dot" id="ob-dot-2"></div>
+    </div>
+
+    <!-- Step 0: Scelta percorso -->
+    <div id="ob-step-0">
+      <div class="ob-title">Benvenuto</div>
+      <div class="ob-sub">Come vuoi procedere?</div>
+      <div class="ob-option selected" id="ob-path-new" onclick="obSelectPath('new')">
+        <strong>Primo accesso</strong>
+        <span>Crea il tuo account Move da zero</span>
+      </div>
+      <div class="ob-option" id="ob-path-existing" onclick="obSelectPath('existing')">
+        <strong>Ho già un account</strong>
+        <span>Recupera i dati da un altro dispositivo tramite Codice Sync</span>
+      </div>
+      <button class="btn btn-primary" onclick="obGoFromPath()" style="width:100%;margin-top:12px">Continua →</button>
+    </div>
+
+    <!-- Step 1A: Nuova password -->
+    <div id="ob-step-1a" style="display:none">
+      <div class="ob-title">Scegli una password</div>
+      <div class="ob-sub">La userai ogni volta che apri Move su questo dispositivo.</div>
+      <div class="ob-field"><input type="password" id="ob-pw" placeholder="Password" onkeydown="if(event.key==='Enter')obNext1a()"></div>
+      <div class="ob-field"><input type="password" id="ob-pw2" placeholder="Conferma password" onkeydown="if(event.key==='Enter')obNext1a()"></div>
+      <div class="ob-err" id="ob-err-1a"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="obGoStep('0')">← Indietro</button>
+        <button class="btn btn-primary" onclick="obNext1a()" style="flex:1">Continua →</button>
+      </div>
+    </div>
+
+    <!-- Step 2A: Cloud setup -->
+    <div id="ob-step-2a" style="display:none">
+      <div class="ob-title">Salvataggio dati</div>
+      <div class="ob-sub">Scegli dove conservare clienti, piani e storici.</div>
+      <div class="ob-option selected" id="ob-opt-create" onclick="obSelectCloud('create')">
+        <strong>Crea nuovo spazio cloud</strong>
+        <span>JSONBin configurato automaticamente — consigliato</span>
+      </div>
+      <div class="ob-option" id="ob-opt-skip" onclick="obSelectCloud('skip')">
+        <strong>Solo locale</strong>
+        <span>I dati restano nel browser, senza backup cloud</span>
+      </div>
+      <div class="ob-err" id="ob-err-2a"></div>
+      <div class="loader" id="ob-loader-2a" style="margin:10px 0"><div class="spin"></div><span>Creazione spazio cloud…</span></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-ghost" onclick="obGoStep('1a')">← Indietro</button>
+        <button class="btn btn-primary" onclick="obFinishNew()" id="ob-btn-new" style="flex:1">Entra →</button>
+      </div>
+    </div>
+
+    <!-- Step 1B: Recupero tramite Bin ID -->
+    <div id="ob-step-1b" style="display:none">
+      <div class="ob-title">Recupera il tuo account</div>
+      <div class="ob-sub">Inserisci il Codice Sync che trovi in <strong>Impostazioni → Cloud Storage</strong> sull'altro dispositivo (pulsante 📋).</div>
+      <div class="ob-field"><input type="text" id="ob-recover-binid" placeholder="Codice Sync" onkeydown="if(event.key==='Enter')obLoadExisting()"></div>
+      <div class="ob-err" id="ob-err-1b"></div>
+      <div class="loader" id="ob-loader-1b" style="margin:10px 0"><div class="spin"></div><span>Caricamento dati…</span></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="obGoStep('0')">← Indietro</button>
+        <button class="btn btn-primary" onclick="obLoadExisting()" id="ob-btn-load" style="flex:1">Carica dati →</button>
+      </div>
+    </div>
+
+    <!-- Step 2B: Verifica password -->
+    <div id="ob-step-2b" style="display:none">
+      <div class="ob-title">Conferma la password</div>
+      <div class="ob-sub">Inserisci la password del tuo account Move per completare l'accesso.</div>
+      <div class="ob-field"><input type="password" id="ob-verify-pw" placeholder="Password" onkeydown="if(event.key==='Enter')obFinishExisting()"></div>
+      <div class="ob-err" id="ob-err-2b"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="obGoStep('1b')">← Indietro</button>
+        <button class="btn btn-primary" onclick="obFinishExisting()" style="flex:1">Entra →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ APP SHELL ═══════ -->
+<div class="shell" id="app-shell">
+<nav class="sidebar">
+  <div class="logo"><div class="logo-move">MOVE</div><div class="logo-sub">Editorial Planner</div></div>
+  <div class="nav-section">Menu</div>
+  <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard"><div class="dot"></div> Dashboard</div>
+  <div class="nav-item" onclick="showPage('generate')" id="nav-generate"><div class="dot"></div> Genera piano</div>
+  <div class="nav-item" onclick="showPage('clients')" id="nav-clients"><div class="dot"></div> Clienti<span class="badge" id="badge-clients">0</span></div>
+  <div class="nav-item" onclick="showPage('history')" id="nav-history"><div class="dot"></div> Storico<span class="badge" id="badge-history">0</span></div>
+  <div class="nav-item" onclick="showPage('settings')" id="nav-settings"><div class="dot"></div> Impostazioni</div>
+  <div class="sidebar-footer">
+    <div class="api-status" onclick="showPage('settings')" id="api-status-btn">
+      <div class="api-dot err" id="api-dot"></div>
+      <span id="api-status-text">Configurazione</span>
+    </div>
+  </div>
+</nav>
+<div class="main">
+
+<!-- ═══════ DASHBOARD ═══════ -->
+<div class="page active" id="page-dashboard">
+  <div class="topbar"><div class="topbar-title">Dashboard</div><div class="sync-badge" id="sync-status">● locale</div></div>
+  <div class="dash-wrap">
+    <!-- Metric cards -->
+    <div class="dash-top-grid" id="dash-stats"></div>
+    <!-- Clients -->
+    <div class="dash-row-header">
+      <div class="dash-row-title">Clienti</div>
+      <div class="dash-row-sub" id="dash-meta-status"></div>
+    </div>
+    <div class="dash-client-grid" id="dash-clients"></div>
+    <div class="empty-state" id="dash-clients-empty" style="display:none;padding:24px 0">
+      <span class="emo">📋</span>Nessun cliente. <span style="color:var(--accent);cursor:pointer" onclick="showPage('clients')">Aggiungine uno.</span>
+    </div>
+    <!-- Selected client detail -->
+    <div class="dash-detail-panel" id="dash-detail" style="display:none"></div>
+    <!-- Tips -->
+    <div class="dash-row-header" style="margin-top:24px">
+      <div class="dash-row-title">Suggerimenti</div>
+    </div>
+    <div class="dash-tips-col" id="dash-ai"></div>
+  </div>
+</div>
+
+<!-- ═══════ GENERA ═══════ -->
+<div class="page" id="page-generate">
+  <div class="topbar"><div class="topbar-title">Genera piano editoriale</div></div>
+  <div class="page-inner">
+    <div class="stepper" id="gen-stepper">
+      <div class="step-item active" id="gsi-0"><div class="step-dot">1</div><span>Cliente</span></div><div class="step-line"></div>
+      <div class="step-item" id="gsi-1"><div class="step-dot">2</div><span>Briefing</span></div><div class="step-line"></div>
+      <div class="step-item" id="gsi-2"><div class="step-dot">3</div><span>Dettagli</span></div><div class="step-line"></div>
+      <div class="step-item" id="gsi-3"><div class="step-dot">4</div><span>Output</span></div>
+    </div>
+
+    <!-- S0: Client -->
+    <div class="gen-step active" id="gs-0">
+      <div class="card"><div class="card-label">Seleziona cliente</div>
+        <div class="client-grid" id="gen-client-grid"></div>
+        <div id="gs0-no-clients" class="empty-state" style="display:none;padding:20px 0"><span class="emo">🙈</span>Nessun cliente. <span style="color:var(--accent);cursor:pointer" onclick="showPage('clients')">Aggiungine uno.</span></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary" onclick="genNext(1)" id="btn-gs0" disabled>Avanti →</button></div>
+    </div>
+
+    <!-- S1: Briefing -->
+    <div class="gen-step" id="gs-1">
+      <div class="card"><div class="card-label">Periodo e frequenza</div>
+        <div class="field-row3">
+          <div class="field"><label>Mese</label><select id="g-mese"></select></div>
+          <div class="field"><label>Frequenza</label><select id="g-freq"><option>2 post/settimana</option><option selected>3 post/settimana</option><option>4 post/settimana</option><option>5 post/settimana</option><option>Quotidiano</option></select></div>
+          <div class="field"><label>N. post</label><select id="g-npost"><option value="8">8</option><option value="12" selected>12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option><option value="30">30</option></select></div>
+        </div>
+      </div>
+      <div class="card"><div class="card-label">Piattaforme</div>
+        <div class="chip-group" id="g-platforms">
+          <span class="chip selected" data-val="Instagram" onclick="toggleChip(this)">Instagram</span>
+          <span class="chip" data-val="Facebook" onclick="toggleChip(this)">Facebook</span>
+          <span class="chip" data-val="TikTok" onclick="toggleChip(this)">TikTok</span>
+          <span class="chip" data-val="LinkedIn" onclick="toggleChip(this)">LinkedIn</span>
+        </div>
+      </div>
+      <div class="card"><div class="card-label">Obiettivi del mese</div>
+        <div class="chip-group" id="g-obiettivi">
+          <span class="chip selected" data-val="Brand awareness" onclick="toggleChip(this)">Brand awareness</span>
+          <span class="chip" data-val="Engagement" onclick="toggleChip(this)">Engagement</span>
+          <span class="chip" data-val="Traffico in sede" onclick="toggleChip(this)">Traffico in sede</span>
+          <span class="chip" data-val="Vendite/conversioni" onclick="toggleChip(this)">Vendite/conversioni</span>
+          <span class="chip" data-val="Lancio prodotto" onclick="toggleChip(this)">Lancio prodotto</span>
+          <span class="chip" data-val="Fidelizzazione" onclick="toggleChip(this)">Fidelizzazione</span>
+          <span class="chip" data-val="Educazione" onclick="toggleChip(this)">Educazione</span>
+          <span class="chip" data-val="Recruiting" onclick="toggleChip(this)">Recruiting</span>
+        </div>
+      </div>
+      <div class="card"><div class="card-label">Indicazioni del mese</div>
+        <div class="field">
+          <div class="label-with-ai"><label>Ricorrenze, eventi, promozioni</label><button class="btn-ai" onclick="aiSuggestEvents()">✨ Suggerisci</button></div>
+          <textarea id="g-eventi" rows="3" placeholder="es. Festa della mamma 11/05, lancio nuovo menù…"></textarea>
+        </div>
+        <div class="field"><label>Target audience</label><input type="text" id="g-target" placeholder="es. Giovani 18-25, famiglie, professionisti…"></div>
+        <div class="field"><label>Note / vincoli</label><textarea id="g-note" rows="2" placeholder="es. evitare temi X, budget ads, orari…"></textarea></div>
+      </div>
+      <div class="card"><div class="card-label">Piano precedente (opzionale)</div>
+        <div class="field"><select id="g-piano-saved" onchange="loadSavedPlan()"><option value="">— Seleziona dallo storico —</option></select></div>
+        <div class="field"><label>Oppure incolla un link Canva design</label><input type="text" id="g-canva-link" placeholder="https://www.canva.com/design/DAH…/view" oninput="onCanvaLink()"></div>
+        <div id="canva-link-info" style="display:none;font-size:11px;color:var(--accent);margin-bottom:10px"></div>
+        <div class="field"><textarea id="g-piano-prec" rows="3" placeholder="Oppure incolla qui il testo di un piano precedente…"></textarea></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-ghost" onclick="genNext(0)">← Indietro</button><button class="btn btn-primary" onclick="genNext(2)">Avanti →</button></div>
+    </div>
+
+    <!-- S2: Details -->
+    <div class="gen-step" id="gs-2">
+      <div class="card"><div class="card-label">Mix formati</div>
+        <div class="chip-group" id="g-formati">
+          <span class="chip selected" data-val="Reel" onclick="toggleChip(this)">Reel</span>
+          <span class="chip selected" data-val="Carosello" onclick="toggleChip(this)">Carosello</span>
+          <span class="chip selected" data-val="Post statico" onclick="toggleChip(this)">Post statico</span>
+          <span class="chip" data-val="Story" onclick="toggleChip(this)">Story</span>
+          <span class="chip" data-val="Video lungo" onclick="toggleChip(this)">Video lungo</span>
+          <span class="chip" data-val="Behind the scenes" onclick="toggleChip(this)">Behind the scenes</span>
+          <span class="chip" data-val="UGC" onclick="toggleChip(this)">UGC</span>
+          <span class="chip" data-val="Infografica" onclick="toggleChip(this)">Infografica</span>
+        </div>
+      </div>
+      <div class="card"><div class="card-label">Pilastri di contenuto</div>
+        <div class="chip-group" id="g-pilastri">
+          <span class="chip selected" data-val="Prodotto/servizio" onclick="toggleChip(this)">Prodotto/servizio</span>
+          <span class="chip" data-val="Dietro le quinte" onclick="toggleChip(this)">Dietro le quinte</span>
+          <span class="chip" data-val="Testimonianze" onclick="toggleChip(this)">Testimonianze</span>
+          <span class="chip" data-val="Educativo" onclick="toggleChip(this)">Educativo</span>
+          <span class="chip" data-val="Intrattenimento" onclick="toggleChip(this)">Intrattenimento</span>
+          <span class="chip" data-val="Promo/offerte" onclick="toggleChip(this)">Promo/offerte</span>
+          <span class="chip" data-val="Valori del brand" onclick="toggleChip(this)">Valori del brand</span>
+          <span class="chip" data-val="Stagionale" onclick="toggleChip(this)">Stagionale</span>
+        </div>
+      </div>
+      <div class="card"><div class="card-label">Template post</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Ogni post generato seguirà questa struttura</div>
+        <div class="field"><textarea id="g-template" rows="9" style="font-size:12px">DATA: [GG/MM]
+FORMATO: [tipo contenuto]
+PIATTAFORMA: [piattaforma]
+PILASTRO: [pilastro di contenuto]
+OBIETTIVO: [obiettivo specifico del post]
+VISUAL: [descrizione dettagliata dell'immagine o video — soggetto, colori, stile, inquadratura]
+CAPTION: [testo completo con emoji e call-to-action]
+HASHTAG: [hashtag rilevanti]
+SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
+      </div>
+      <div class="card"><div class="card-label">🤖 Scegli AI</div>
+        <div class="field-row">
+          <div class="field"><label>Provider</label><select id="g-provider" onchange="updateModelOptions()">
+            <option value="groq">Groq (gratuito)</option>
+            <option value="openrouter">OpenRouter (più modelli)</option>
+          </select></div>
+          <div class="field"><label>Modello</label><select id="g-model"></select></div>
+        </div>
+      </div>
+      <div class="card" id="adv-card" style="display:none"><div class="card-label">Parametri avanzati</div>
+        <div class="field-row">
+          <div class="field"><label>Temperature (creatività)</label><input type="number" id="g-temperature" min="0.1" max="1.0" step="0.1" value="0.7"></div>
+          <div class="field"><label>Max tokens (lunghezza)</label><input type="number" id="g-max-tokens" min="512" max="8192" step="256" value="4096"></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:12px;cursor:pointer" onclick="document.getElementById('adv-card').style.display=document.getElementById('adv-card').style.display==='none'?'block':'none'">⚙ Parametri avanzati</div>
+      <div class="btn-row"><button class="btn btn-ghost" onclick="genNext(1)">← Indietro</button><button class="btn btn-primary" onclick="startGeneration()" id="btn-genera">⚡ Genera piano</button></div>
+    </div>
+
+    <!-- S3: Output -->
+    <div class="gen-step" id="gs-3">
+      <div class="loader show" id="gen-loader"><div class="spin"></div><span id="gen-loader-msg">Sto generando il piano editoriale…</span></div>
+      <div class="gen-progress" id="gen-progress"><div style="font-size:12px;color:var(--text2)" id="progress-label">Elaborazione…</div><div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-bar" style="width:5%"></div></div></div>
+      <div id="gen-output" style="display:none">
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div><div style="font-family:var(--sans);font-size:16px;font-weight:700" id="out-title">Piano</div><div style="font-size:12px;color:var(--text3);margin-top:2px" id="out-sub"></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="copyAllPosts()">📋 Copia tutto</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportCSV()">↓ CSV</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportHTML()">↓ HTML</button>
+            <button class="btn btn-primary btn-sm" onclick="genNext(0);resetGen()">Nuovo piano</button>
+          </div>
+        </div>
+        <div id="gen-posts-list"></div>
+        <div class="card" style="margin-top:8px"><div class="card-label">Modifica AI</div>
+          <div class="field"><textarea id="mod-input" rows="2" placeholder="es. Aggiungi un post, cambia il tono del post 3…"></textarea></div>
+          <div class="loader" id="mod-loader" style="margin-bottom:8px"><div class="spin"></div><span>Modifico…</span></div>
+          <div class="btn-row" style="margin-top:0"><button class="btn btn-primary btn-sm" onclick="applyModifica()">Applica modifica</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CLIENTI ═══════ -->
+<div class="page" id="page-clients">
+  <div class="topbar"><div class="topbar-title">Clienti</div><button class="btn btn-primary btn-sm" onclick="openClientModal()">+ Nuovo cliente</button></div>
+  <div class="page-inner"><div id="clients-list"></div><div id="clients-empty" class="empty-state" style="display:none"><span class="emo">📋</span>Nessun cliente ancora.</div></div>
+</div>
+
+<!-- ═══════ STORICO ═══════ -->
+<div class="page" id="page-history">
+  <div class="topbar"><div class="topbar-title">Storico piani</div></div>
+  <div class="page-inner"><div id="history-list"></div><div id="history-empty" class="empty-state" style="display:none"><span class="emo">🗂</span>Nessun piano generato.</div></div>
+</div>
+
+<!-- ═══════ SETTINGS ═══════ -->
+<div class="page" id="page-settings">
+  <div class="topbar"><div class="topbar-title">Impostazioni</div></div>
+  <div class="page-inner" style="max-width:650px">
+
+    <!-- Status & Tests first -->
+    <div class="card" id="config-card"><div class="card-label">Stato servizi</div>
+      <div id="config-status-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm" onclick="checkConfig()">🔄 Aggiorna stato</button>
+      </div>
+    </div>
+
+    <!-- AI Providers -->
+    <div class="card"><div class="card-label">🤖 AI — Test e configurazione</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Groq</div><div class="setting-sub">Gratuito — Llama, Mixtral</div></div>
+        <div class="setting-ctrl" style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="testGroq()">🧪 Test Groq</button></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">OpenRouter</div><div class="setting-sub">A consumo — Claude, GPT, Gemini…</div></div>
+        <div class="setting-ctrl" style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="testOpenRouter()">🧪 Test OpenRouter</button></div>
+      </div>
+      <div id="ai-test-result" style="font-size:12px;color:var(--text3);margin-top:8px"></div>
+      <div style="margin-top:12px;font-size:11px;color:var(--text3);cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">▸ Come configurare le API key su Netlify</div>
+      <div style="display:none">
+        <div class="steps-box" style="margin-top:8px">
+          <strong>Groq:</strong> <a href="https://console.groq.com" target="_blank">console.groq.com</a> → API Keys → copia → Netlify env var: <code>GROQ_API_KEY</code><br>
+          <strong>OpenRouter:</strong> <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> → crea key → Netlify env var: <code>OPENROUTER_API_KEY</code><br><br>
+          Su Netlify: Site configuration → Environment variables → scope: <strong>All</strong> → Trigger deploy
+        </div>
+      </div>
+    </div>
+
+    <!-- Cloud Storage -->
+    <div class="card"><div class="card-label">☁️ Cloud Storage</div>
+      <div class="setting-row">
+        <div><div class="setting-label">JSONBin</div><div class="setting-sub">Sincronizza i dati tra dispositivi</div></div>
+        <div class="setting-ctrl" style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="forceSyncToCloud()">☁ Sync ora</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadFromCloud()">↓ Carica</button>
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Codice Sync — <span style="color:var(--text3)">copialo per accedere da un altro dispositivo</span></label>
+        <div style="display:flex;gap:6px">
+          <input type="text" id="s-binid" placeholder="Generato automaticamente al primo Sync" style="flex:1">
+          <button class="btn btn-ghost btn-sm" onclick="copyBinId()" title="Copia Codice Sync" style="flex-shrink:0">📋</button>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="saveBinId()">Salva codice</button><span id="settings-msg" style="font-size:12px;color:var(--text3)"></span></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3);cursor:pointer" onclick="toggleSection(this)">▸ Come usare il Codice Sync</div>
+      <div style="display:none"><div class="steps-box" style="margin-top:8px">
+        <strong>1.</strong> Su questo dispositivo: clicca <strong>☁ Sync ora</strong> — il codice viene generato automaticamente<br>
+        <strong>2.</strong> Copia il Codice Sync con 📋<br>
+        <strong>3.</strong> Sul secondo dispositivo: apri Move → schermata di primo accesso → <em>Accedi con un account esistente</em> → incolla il codice
+      </div></div>
+    </div>
+
+    <!-- Meta Business -->
+    <div class="card"><div class="card-label">📊 Meta Business</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Token del <strong>tuo</strong> account (agenzia). Poi aggiungi il Page ID di ogni cliente nella sua scheda.</div>
+      <div class="field"><label>Access Token Meta</label><input type="text" id="s-meta-token" placeholder="EAA…"></div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="saveMetaToken()">Salva</button><button class="btn btn-ghost btn-sm" onclick="testMetaAPI()">🧪 Test</button><span id="meta-msg" style="font-size:12px;color:var(--text3)"></span></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3);cursor:pointer" onclick="toggleSection(this)">▸ Come ottenere il token</div>
+      <div style="display:none"><div class="steps-box" style="margin-top:8px"><a href="https://developers.facebook.com" target="_blank">developers.facebook.com</a> → App Business → Esplora API Graph → permessi: <code>pages_read_engagement, instagram_basic, instagram_manage_insights, read_insights</code></div></div>
+    </div>
+
+    <!-- Canva -->
+    <div class="card"><div class="card-label">🎨 Canva</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Collegando Canva puoi:</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.7">
+        → <strong>Importare template</strong> dal tuo account come base per i piani<br>
+        → <strong>Usare Bulk Create</strong>: esporti il piano come CSV, lo carichi in Canva e crea automaticamente tutti i post da un template<br>
+        → <strong>Accedere al Brand Kit</strong>: colori, font e loghi del cliente collegati<br>
+        → <strong>Salvare i design</strong> direttamente nel tuo spazio Canva
+      </div>
+      <div class="field"><label>Canva API Token (OAuth2)</label><input type="text" id="s-canva-token" placeholder="Token Canva"></div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="saveCanvaToken()">Salva</button><span id="canva-msg" style="font-size:12px;color:var(--text3)"></span></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3);cursor:pointer" onclick="toggleSection(this)">▸ Come configurare Canva</div>
+      <div style="display:none"><div class="steps-box" style="margin-top:8px">
+        Richiede Canva <strong>Pro/Teams</strong>. <a href="https://www.canva.com/developers" target="_blank">canva.com/developers</a> → Nuova integrazione → Scopes: <code>design:content:read</code> <code>design:content:write</code> <code>asset:read</code> <code>asset:write</code> <code>brandtemplate:content:read</code> <code>folder:read</code> → Redirect URI = URL del tuo sito → Genera token OAuth2<br><br>
+        <strong>Alternativa senza API:</strong> esporta come CSV → Canva → Bulk Create → scegli template → importa CSV → tutti i post vengono generati automaticamente.
+      </div></div>
+    </div>
+
+    <!-- Password -->
+    <div class="card"><div class="card-label">🔒 Sicurezza</div>
+      <div class="field"><label>Cambia password</label><input type="password" id="s-newpw" placeholder="Nuova password"></div>
+      <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="changePassword()">Cambia</button><span id="pw-msg" style="font-size:12px;color:var(--text3)"></span></div>
+    </div>
+
+    <!-- Data -->
+    <div class="card"><div class="card-label">💾 Dati</div>
+      <div class="setting-row"><div><div class="setting-label">Esporta</div></div><div class="setting-ctrl"><button class="btn btn-ghost btn-sm" onclick="exportData()">↓ JSON</button></div></div>
+      <div class="setting-row"><div><div class="setting-label">Importa</div></div><div class="setting-ctrl"><input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)"><button class="btn btn-ghost btn-sm" onclick="document.getElementById('import-file').click()">↑ Importa</button></div></div>
+      <div class="setting-row"><div><div class="setting-label">Reset</div><div class="setting-sub">Cancella tutto</div></div><div class="setting-ctrl"><button class="btn btn-danger btn-sm" onclick="clearAll()">Reset</button></div></div>
+    </div>
+  </div>
+</div>
+
+</div></div>
+
+<!-- ═══════ MODAL CLIENTE ═══════ -->
+<div class="modal-overlay" id="client-modal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-title"><span id="cm-title">Nuovo cliente</span><span class="modal-close" onclick="closeClientModal()">×</span></div>
+    <div class="detail-tabs" id="cm-tabs">
+      <div class="detail-tab active" onclick="showCmTab(0)">Info base</div>
+      <div class="detail-tab" onclick="showCmTab(1)">Contatti</div>
+      <div class="detail-tab" onclick="showCmTab(2)">Social & Brand</div>
+      <div class="detail-tab" onclick="showCmTab(3)">Meta Business</div>
+    </div>
+    <div class="tab-content active" id="cm-tab-0">
+      <div class="field-row"><div class="field"><label>Nome cliente *</label><input type="text" id="cm-name" placeholder="es. Gaz, Da Bacone…"></div><div class="field"><label>Emoji</label><input type="text" id="cm-emoji" placeholder="🍕" style="text-align:center;font-size:20px"></div></div>
+      <div class="field"><label>Tipo attività *</label><input type="text" id="cm-tipo" placeholder="es. Pizzeria contemporanea, Pescara"></div>
+      <div class="field"><label>Settore</label><select id="cm-settore"><option value="">— Seleziona —</option><option>Ristorazione</option><option>Retail</option><option>Servizi professionali</option><option>Beauty & Wellness</option><option>Moda</option><option>Tech</option><option>Artigianato</option><option>Sport & Fitness</option><option>Salute</option><option>Turismo</option><option>Educazione</option><option>Altro</option></select></div>
+      <div class="field"><div class="label-with-ai"><label>Tono di voce *</label><button class="btn-ai" onclick="aiSuggestTone()">✨ Suggerisci</button></div><textarea id="cm-tono" rows="4" placeholder="Descrivi il tono, regole linguistiche, cosa evitare…"></textarea></div>
+      <div class="field"><label>Target principale</label><input type="text" id="cm-target" placeholder="es. Giovani 18-30, famiglie"></div>
+      <div class="field"><label>Hashtag</label><input type="text" id="cm-hashtag" placeholder="#pizza #pescara #food"></div>
+      <div class="field"><label>Parole chiave SEO</label><input type="text" id="cm-seo" placeholder="es. pizza artigianale pescara, pizzeria centro"></div>
+      <div class="field"><label>Note interne</label><textarea id="cm-note" rows="2" placeholder="Note personali, contratto…"></textarea></div>
+    </div>
+    <div class="tab-content" id="cm-tab-1">
+      <div class="field"><label>Indirizzo</label><input type="text" id="cm-indirizzo" placeholder="Via Roma 1"></div>
+      <div class="field-row"><div class="field"><label>Città</label><input type="text" id="cm-citta" placeholder="Pescara"></div><div class="field"><label>CAP</label><input type="text" id="cm-cap" placeholder="65122"></div></div>
+      <div class="field-row"><div class="field"><label>Telefono</label><input type="tel" id="cm-telefono" placeholder="+39 085…"></div><div class="field"><label>Email</label><input type="email" id="cm-email" placeholder="info@…"></div></div>
+      <div class="field"><label>Sito web</label><input type="url" id="cm-website" placeholder="https://…"></div>
+      <div class="field"><label>Referente</label><input type="text" id="cm-referente" placeholder="Nome del contatto"></div>
+      <div class="field"><label>Orari apertura</label><textarea id="cm-orari" rows="3" placeholder="Lun-Ven: 9-18&#10;Sab: 9-13&#10;Dom: chiuso"></textarea></div>
+      <div class="field"><label>P.IVA</label><input type="text" id="cm-piva" placeholder="IT…"></div>
+    </div>
+    <div class="tab-content" id="cm-tab-2">
+      <div class="field"><label>Instagram</label><input type="text" id="cm-instagram" placeholder="@username"></div>
+      <div class="field"><label>Facebook</label><input type="text" id="cm-facebook" placeholder="URL pagina"></div>
+      <div class="field"><label>TikTok</label><input type="text" id="cm-tiktok" placeholder="@username"></div>
+      <div class="field"><label>LinkedIn</label><input type="text" id="cm-linkedin" placeholder="URL"></div>
+      <div class="field"><label>Google Business</label><input type="text" id="cm-gbusiness" placeholder="URL"></div>
+      <div class="field"><label>Colori brand</label><input type="text" id="cm-colori" placeholder="#FF5733, rosso, nero"></div>
+      <div class="field"><label>Stile visivo</label><textarea id="cm-stile-visivo" rows="2" placeholder="Minimal, colori caldi, foto naturali…"></textarea></div>
+      <div class="field"><label>Canva Brand Kit</label><input type="text" id="cm-canva-brand" placeholder="Link o ID del brand kit"></div>
+    </div>
+    <div class="tab-content" id="cm-tab-3">
+      <div class="alert alert-info">Inserisci gli ID delle pagine Facebook/Instagram di <strong>questo cliente</strong>. Il token Meta dell'agenzia è nelle Impostazioni.</div>
+      <div class="field"><label>Facebook Page ID</label><input type="text" id="cm-fb-pageid" placeholder="123456789"></div>
+      <div class="field"><label>Instagram Business Account ID</label><input type="text" id="cm-ig-accountid" placeholder="17841405…"></div>
+      <div class="field"><label>Ad Account ID</label><input type="text" id="cm-ad-accountid" placeholder="act_123…"></div>
+      <div class="btn-row"><button class="btn btn-ghost btn-sm" onclick="testClientMeta()">🧪 Test connessione</button><span id="cm-meta-msg" style="font-size:12px;color:var(--text3)"></span></div>
+    </div>
+    <hr>
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveClient()">Salva cliente</button><button class="btn btn-ghost" onclick="closeClientModal()">Annulla</button></div>
+  </div>
+</div>
+
+<!-- ═══════ MODAL STORICO ═══════ -->
+<div class="modal-overlay" id="history-modal">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-title"><span id="hm-title">Piano</span><span class="modal-close" onclick="document.getElementById('history-modal').classList.remove('show')">×</span></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:16px" id="hm-meta"></div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="copyHistoryPosts()">📋 Copia</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportHistoryCSV()">↓ CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportHistoryHTML()">↓ HTML</button>
+      <button class="btn btn-ghost btn-sm" onclick="useAsReference()">Usa come riferimento</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteHistoryItem()">Elimina</button>
+    </div>
+    <div id="hm-posts"></div>
+  </div>
+</div>
+
+<script>
+// ═══════ CONSTANTS & STORAGE ═══════
+const KEYS={clients:'mv_clients',settings:'mv_settings',history:'mv_history',auth:'mv_auth',binId:'mv_binid'};
+
+// ═══════ API HELPER ═══════
+function apiFetch(payload){
+  return fetch('/.netlify/functions/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+}
+function load(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v));scheduleSync()}
+function getClients(){return load(KEYS.clients)||[]}
+function saveClients(v){save(KEYS.clients,v);updateBadges()}
+function getSettings(){return load(KEYS.settings)||{model:'llama-3.3-70b-versatile',metaToken:'',canvaToken:''}}
+function saveSettingsObj(v){save(KEYS.settings,v)}
+function getHistory(){return load(KEYS.history)||[]}
+function saveHistory(v){save(KEYS.history,v);updateBadges()}
+function getAuth(){return load(KEYS.auth)||{pw:null}}
+function saveAuth(v){save(KEYS.auth,v)}
+function getBinId(){return localStorage.getItem(KEYS.binId)||''}
+function setBinId(v){localStorage.setItem(KEYS.binId,v)}
+
+// ═══════ CLOUD SYNC ═══════
+let syncTimer=null;
+function _setBadge(text,cls){const b=document.getElementById('sync-status');if(b){b.textContent=text;b.className='sync-badge'+(cls?' '+cls:'')}}
+function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncToCloud,3000)}
+async function syncToCloud(){
+  const key=getBinId();if(!key)return;
+  _setBadge('● sync…','syncing');
+  try{
+    const resp=await apiFetch({action:'blob-save',key,data:getAllData()});
+    const r=await resp.json();
+    if(!resp.ok||r.error){_setBadge('● locale','');console.error('syncToCloud:',r.error?.message||resp.status);return}
+    _setBadge('● cloud','synced');
+  }catch(e){_setBadge('● locale','');console.error('syncToCloud:',e)}
+}
+async function forceSyncToCloud(){
+  let key=getBinId();
+  if(!key){key=crypto.randomUUID();setBinId(key);refreshBinIdField();}
+  _setBadge('● sync…','syncing');
+  try{
+    const resp=await apiFetch({action:'blob-save',key,data:getAllData()});
+    const r=await resp.json();
+    if(!resp.ok||r.error){const msg=r.error?.message||'HTTP '+resp.status;_setBadge('● locale','');showMsg('settings-msg','✗ '+msg);return}
+    _setBadge('● cloud','synced');showMsg('settings-msg','✓ Sincronizzato');
+  }catch(e){_setBadge('● locale','');showMsg('settings-msg','✗ '+e.message)}
+}
+async function loadFromCloud(silent=false){
+  const key=getBinId();
+  if(!key){if(!silent)showMsg('settings-msg','Nessun Codice Sync');return false}
+  try{
+    const resp=await apiFetch({action:'blob-load',key});
+    const r=await resp.json();
+    if(resp.status===404){
+      if(!silent)showMsg('settings-msg','Nessun dato trovato. Premi ☁ Sync ora dal dispositivo principale.');
+      else _setBadge('● nessun dato','');
+      return false;
+    }
+    if(!resp.ok||r.error){
+      const msg=r.error?.message||'HTTP '+resp.status;
+      if(!silent)showMsg('settings-msg','✗ '+msg);
+      else _setBadge('● errore','');
+      console.error('loadFromCloud:',msg);return false;
+    }
+    const data=r.record;
+    if(!data){if(!silent)showMsg('settings-msg','Cloud vuoto');return false}
+    if(data.clients)localStorage.setItem(KEYS.clients,JSON.stringify(data.clients));
+    if(data.history)localStorage.setItem(KEYS.history,JSON.stringify(data.history));
+    if(data.settings)localStorage.setItem(KEYS.settings,JSON.stringify(data.settings));
+    if(data.auth)localStorage.setItem(KEYS.auth,JSON.stringify(data.auth));
+    updateBadges();
+    if(!silent)showMsg('settings-msg','✓ Caricato');
+    refreshAll();return true;
+  }catch(e){
+    if(!silent)showMsg('settings-msg','✗ '+e.message);
+    else _setBadge('● locale','');
+    console.error('loadFromCloud:',e);return false;
+  }
+}
+function getAllData(){return{clients:getClients(),history:getHistory(),settings:getSettings(),auth:getAuth(),savedAt:new Date().toISOString()}}
+function saveBinId(){setBinId(document.getElementById('s-binid').value.trim());showMsg('settings-msg','✓ Salvato')}
+
+// ═══════ AUTH ═══════
+function doLogin(){
+  const pw=document.getElementById('login-pw').value;
+  if(pw===getAuth().pw){sessionStorage.setItem('mv_logged','1');document.getElementById('login-screen').style.display='none';document.getElementById('app-shell').classList.add('active');boot()}
+  else{document.getElementById('login-err').textContent='Password errata'}
+}
+function changePassword(){
+  const np=document.getElementById('s-newpw').value.trim();
+  if(!np||np.length<2){showMsg('pw-msg','Password troppo corta');return}
+  const a=getAuth();a.pw=np;saveAuth(a);showMsg('pw-msg','✓ Password aggiornata');document.getElementById('s-newpw').value='';
+}
+function checkSession(){
+  if(sessionStorage.getItem('mv_logged')==='1'){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app-shell').classList.add('active');
+    boot();return;
+  }
+  if(!getAuth().pw){
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('onboarding-screen').classList.add('active');
+  }
+}
+
+// ═══════ ONBOARDING ═══════
+let _obPath='new',_obPw='',_obCloud='create',_obCloudData=null;
+
+function obGoStep(s){
+  ['0','1a','2a','1b','2b'].forEach(id=>{const el=document.getElementById('ob-step-'+id);if(el)el.style.display='none'});
+  document.getElementById('ob-step-'+s).style.display='block';
+  const p={0:0,'1a':1,'2a':2,'1b':1,'2b':2}[String(s)]??0;
+  [0,1,2].forEach(i=>{
+    const d=document.getElementById('ob-dot-'+i);if(!d)return;
+    d.className=i<p?'ob-step-dot done':i===p?'ob-step-dot active':'ob-step-dot';
+  });
+}
+
+function obSelectPath(p){
+  _obPath=p;
+  ['new','existing'].forEach(o=>document.getElementById('ob-path-'+o).classList.toggle('selected',o===p));
+}
+
+function obGoFromPath(){obGoStep(_obPath==='new'?'1a':'1b')}
+
+function obNext1a(){
+  const pw=document.getElementById('ob-pw').value;
+  const pw2=document.getElementById('ob-pw2').value;
+  const err=document.getElementById('ob-err-1a');
+  if(pw.length<2){err.textContent='Password troppo corta (min. 2 caratteri)';return}
+  if(pw!==pw2){err.textContent='Le password non coincidono';return}
+  _obPw=pw;err.textContent='';obGoStep('2a');
+}
+
+function obSelectCloud(opt){
+  _obCloud=opt;
+  ['create','skip'].forEach(o=>{const el=document.getElementById('ob-opt-'+o);if(el)el.classList.toggle('selected',o===opt)});
+}
+
+async function obFinishNew(){
+  const btn=document.getElementById('ob-btn-new');
+  const err=document.getElementById('ob-err-2a');
+  const loader=document.getElementById('ob-loader-2a');
+  btn.disabled=true;err.textContent='';
+  saveAuth({pw:_obPw});
+  if(_obCloud==='create'){
+    const key=crypto.randomUUID();setBinId(key);
+    loader.classList.add('show');
+    try{
+      const resp=await apiFetch({action:'blob-save',key,data:getAllData()});
+      const r=await resp.json();
+      if(!resp.ok||r.error)err.textContent=(r.error?.message||'Errore sync.')+' I dati restano in locale.';
+    }catch{err.textContent='Cloud non raggiungibile — i dati restano in locale per ora.'}
+    loader.classList.remove('show');
+  }
+  obEnterApp();
+}
+
+async function obLoadExisting(){
+  const binId=document.getElementById('ob-recover-binid').value.trim();
+  const err=document.getElementById('ob-err-1b');
+  const loader=document.getElementById('ob-loader-1b');
+  const btn=document.getElementById('ob-btn-load');
+  if(!binId){err.textContent='Inserisci il Codice Sync';return}
+  err.textContent='';btn.disabled=true;loader.classList.add('show');
+  try{
+    const resp=await apiFetch({action:'blob-load',key:binId});
+    const r=await resp.json();
+    if(resp.status===404){err.textContent='Codice Sync non trovato. Verifica di averlo copiato correttamente.';btn.disabled=false;loader.classList.remove('show');return}
+    _obCloudData=r.record;
+    if(!_obCloudData){err.textContent='Nessun dato trovato per questo codice.';btn.disabled=false;loader.classList.remove('show');return}
+    setBinId(binId);
+    // Scrive direttamente in localStorage senza triggerare scheduleSync
+    if(_obCloudData.clients)localStorage.setItem(KEYS.clients,JSON.stringify(_obCloudData.clients));
+    if(_obCloudData.history)localStorage.setItem(KEYS.history,JSON.stringify(_obCloudData.history));
+    if(_obCloudData.settings)localStorage.setItem(KEYS.settings,JSON.stringify(_obCloudData.settings));
+    loader.classList.remove('show');
+    obGoStep('2b');
+  }catch(e){
+    err.textContent='Errore: '+e.message;
+    btn.disabled=false;loader.classList.remove('show');
+  }
+}
+
+function obFinishExisting(){
+  const pw=document.getElementById('ob-verify-pw').value;
+  const err=document.getElementById('ob-err-2b');
+  const cloudPw=_obCloudData?.auth?.pw;
+  if(cloudPw&&pw!==cloudPw){err.textContent='Password non corretta';return}
+  saveAuth({pw:cloudPw||pw});
+  obEnterApp();
+}
+
+function obEnterApp(){
+  sessionStorage.setItem('mv_logged','1');
+  document.getElementById('onboarding-screen').classList.remove('active');
+  document.getElementById('app-shell').classList.add('active');
+  boot();
+}
+
+// ═══════ NAV ═══════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('page-'+id),nv=document.getElementById('nav-'+id);
+  if(pg)pg.classList.add('active');if(nv)nv.classList.add('active');
+  if(id==='dashboard')renderDashboard();if(id==='clients')renderClientsList();
+  if(id==='history')renderHistoryList();if(id==='generate')renderGenClientGrid();
+  if(id==='settings')loadSettingsPage();
+}
+function updateBadges(){document.getElementById('badge-clients').textContent=getClients().length;document.getElementById('badge-history').textContent=getHistory().length}
+function refreshAll(){updateBadges();renderDashboard()}
+
+// ═══════ DASHBOARD ═══════
+let _dashClients=[];
+let _dashSelectedIdx=-1;
+
+function renderDashboard(){
+  const clients=getClients(),history=getHistory();
+  _dashClients=clients;
+  const metaCache=load('mv_meta_cache')||{};
+
+  // Top metrics
+  const withPlans=clients.filter(c=>history.some(h=>h.clientId===c.id)).length;
+  const needPlan=clients.filter(c=>{
+    const plans=history.filter(h=>h.clientId===c.id);
+    if(!plans.length)return true;
+    return Math.floor((Date.now()-new Date(plans[0].createdAt).getTime())/864e5)>25;
+  }).length;
+  const totalPosts=history.reduce((s,h)=>s+(h.posts?.length||0),0);
+  const now=new Date();
+  const postsThisMonth=history
+    .filter(h=>{const d=new Date(h.createdAt);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()})
+    .reduce((s,h)=>s+(h.posts?.length||0),0);
+
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="dash-metric-card accent">
+      <div class="dash-metric-val">${clients.length}</div>
+      <div class="dash-metric-label">Clienti totali</div>
+      <div class="dash-metric-trend up">${withPlans} con piano attivo</div>
+    </div>
+    <div class="dash-metric-card">
+      <div class="dash-metric-val">${totalPosts}</div>
+      <div class="dash-metric-label">Post generati</div>
+      <div class="dash-metric-trend up">+${postsThisMonth} questo mese</div>
+    </div>
+    <div class="dash-metric-card ${needPlan>0?'warn':''}">
+      <div class="dash-metric-val">${needPlan}</div>
+      <div class="dash-metric-label">Da aggiornare</div>
+      <div class="dash-metric-trend ${needPlan===0?'up':'warn'}">${needPlan===0?'Tutto aggiornato':'Piano scaduto o mancante'}</div>
+    </div>
+    <div class="dash-metric-card">
+      <div class="dash-metric-val">${history.length}</div>
+      <div class="dash-metric-label">Piani storici</div>
+      <div class="dash-metric-trend">${clients.length>0?Math.round(withPlans/clients.length*100):0}% clienti coperti</div>
+    </div>`;
+
+  // Client cards
+  const dc=document.getElementById('dash-clients'),dce=document.getElementById('dash-clients-empty');
+  if(!clients.length){
+    dc.innerHTML='';dce.style.display='block';
+    document.getElementById('dash-detail').style.display='none';
+    document.getElementById('dash-ai').innerHTML='<div class="ai-tip">Nessun cliente. <strong style="cursor:pointer;color:var(--accent)" onclick="showPage(\'clients\')">Aggiungine uno</strong> per iniziare.</div>';
+    return;
+  }
+  dce.style.display='none';
+
+  dc.innerHTML=clients.map((c,i)=>{
+    const cPlans=history.filter(h=>h.clientId===c.id);
+    const last=cPlans[0];
+    const days=last?Math.floor((Date.now()-new Date(last.createdAt).getTime())/864e5):null;
+    const col=!last?'var(--red)':days>25?'var(--amber)':'var(--accent)';
+    const meta=metaCache[c.id];
+    const hasMeta=c.fbPageId||c.igAccountId;
+    const isSelected=i===_dashSelectedIdx;
+    const sparkline=_buildSparkline(c.id,history);
+    return`<div class="dash-client-card${isSelected?' selected':''}" onclick="_selectDash(${i})" role="button" tabindex="0"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();_selectDash(${i})}">
+      <div class="dc-head">
+        <div class="dc-emoji" aria-hidden="true">${c.emoji||'📋'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="dc-name">${esc(c.name)}</div>
+          <div class="dc-tipo">${esc(c.tipo||'—')}${c.citta?' · '+esc(c.citta):''}</div>
+        </div>
+        ${hasMeta?`<button class="dc-meta-btn" onclick="event.stopPropagation();_loadMeta(${i})" aria-label="Carica dati Meta">↺ Meta</button>`:''}
+      </div>
+      <div class="dc-chart" aria-hidden="true">${sparkline}</div>
+      <div class="dc-foot">
+        <div class="dc-foot-item">
+          <div class="dc-foot-val">${cPlans.length}</div>
+          <div class="dc-foot-lbl">Piani</div>
+        </div>
+        <div class="dc-foot-item">
+          <div class="dc-foot-val">${cPlans.reduce((s,p)=>s+(p.posts?.length||0),0)}</div>
+          <div class="dc-foot-lbl">Post</div>
+        </div>
+        <div class="dc-foot-item">
+          <div class="dc-foot-val" style="color:${col}">${!last?'—':days===0?'oggi':days+'gg'}</div>
+          <div class="dc-foot-lbl">Ultimo piano</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if(_dashSelectedIdx>=0&&_dashSelectedIdx<clients.length)_renderDashDetail(_dashSelectedIdx);
+
+  // Tips
+  const tips=[];
+  clients.forEach(c=>{
+    const plans=history.filter(h=>h.clientId===c.id);
+    if(!plans.length)tips.push(`<strong>${esc(c.name)}</strong> — nessun piano. Genera il primo.`);
+    else{const d=Math.floor((Date.now()-new Date(plans[0].createdAt).getTime())/864e5);
+      if(d>25)tips.push(`<strong>${esc(c.name)}</strong> — ultimo piano ${d} giorni fa. Pianifica il prossimo mese.`)}
+    if(!c.fbPageId&&!c.igAccountId)tips.push(`<strong>${esc(c.name)}</strong> — aggiungi Page ID nella scheda per collegare Meta.`);
+  });
+  if(!tips.length)tips.push('Tutto aggiornato. Tutti i clienti hanno piani recenti.');
+  document.getElementById('dash-ai').innerHTML=tips.slice(0,5).map(t=>`<div class="ai-tip">${t}</div>`).join('');
+
+}
+
+function _buildSparkline(clientId,history){
+  const plans=history.filter(h=>h.clientId===clientId).slice(0,6).reverse();
+  if(plans.length<2){
+    return`<svg viewBox="0 0 200 44" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,28 C40,26 60,18 100,22 C140,26 160,14 200,18" stroke="var(--border2)" stroke-width="1.5" fill="none" opacity="0.7"/>
+    </svg>`;
+  }
+  const vals=plans.map(p=>p.posts?.length||0);
+  const max=Math.max(...vals,1);
+  const pts=vals.map((v,i)=>[Math.round((i/(vals.length-1))*198)+1,Math.round(40-(v/max)*32-2)]);
+  const linePath=pts.reduce((acc,[x,y],i)=>{
+    if(i===0)return`M${x},${y}`;
+    const[px,py]=pts[i-1];const mx=(px+x)/2;
+    return acc+` C${mx},${py} ${mx},${y} ${x},${y}`;
+  },'');
+  const areaPath=linePath+` L${pts[pts.length-1][0]},44 L${pts[0][0]},44 Z`;
+  const uid='sp'+clientId.replace(/[^a-z0-9]/gi,'_');
+  return`<svg viewBox="0 0 200 44" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${areaPath}" fill="url(#${uid})"/>
+    <path d="${linePath}" stroke="var(--accent)" stroke-width="1.5" fill="none"/>
+    <circle cx="${pts[pts.length-1][0]}" cy="${pts[pts.length-1][1]}" r="3" fill="var(--accent)"/>
+  </svg>`;
+}
+
+function _selectDash(i){
+  _dashSelectedIdx=_dashSelectedIdx===i?-1:i;
+  renderDashboard();
+  if(_dashSelectedIdx>=0){
+    setTimeout(()=>{const el=document.getElementById('dash-detail');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'})},60);
+  }
+}
+
+function _renderDashDetail(i){
+  const c=_dashClients[i];if(!c)return;
+  const metaCache=load('mv_meta_cache')||{};
+  const meta=metaCache[c.id];
+  const history=getHistory();
+  const cPlans=history.filter(h=>h.clientId===c.id);
+  const postCount=cPlans.reduce((s,p)=>s+(p.posts?.length||0),0);
+  const s=getSettings();
+  const hasMeta=(c.fbPageId||c.igAccountId)&&s.metaToken;
+  const detail=document.getElementById('dash-detail');
+  detail.style.display='block';
+  detail.innerHTML=`
+    <div class="ddp-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:28px;line-height:1">${c.emoji||'📋'}</div>
+        <div>
+          <div class="ddp-name">${esc(c.name)}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">${esc(c.tipo||'—')}${c.citta?' · '+esc(c.citta):''}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${hasMeta?`<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="_loadMeta(${i})">↺ Aggiorna Meta</button>`:''}
+        <button class="btn btn-primary btn-sm" style="font-size:11px" onclick="_startGenFor(${i})">+ Genera piano</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:4px 8px" onclick="_closeDashDetail()" aria-label="Chiudi pannello">✕</button>
+      </div>
+    </div>
+    <div class="ddp-grid">
+      <div class="ddp-cell">
+        <div class="ddp-cell-val">${cPlans.length}</div>
+        <div class="ddp-cell-lbl">Piani editoriali</div>
+      </div>
+      <div class="ddp-cell">
+        <div class="ddp-cell-val">${postCount}</div>
+        <div class="ddp-cell-lbl">Post totali</div>
+      </div>
+      <div class="ddp-cell">
+        <div class="ddp-cell-val" style="color:${meta?'var(--text)':'var(--text3)'}">${meta?_fmtN(meta.followers):'—'}</div>
+        <div class="ddp-cell-lbl">Follower</div>
+      </div>
+      <div class="ddp-cell">
+        <div class="ddp-cell-val" style="color:${meta?'var(--accent)':'var(--text3)'}">${meta?_fmtN(meta.reach):'—'}</div>
+        <div class="ddp-cell-lbl">Reach (30gg)</div>
+      </div>
+    </div>
+    ${!meta&&hasMeta?`<div style="margin-top:12px;font-size:12px;color:var(--text3)">Clicca <strong>↺ Aggiorna Meta</strong> per caricare le statistiche reali.</div>`:''}
+    ${!hasMeta?`<div style="margin-top:12px;font-size:12px;color:var(--text3)">Aggiungi il <strong>Page ID</strong> nella scheda cliente e il <strong>token Meta</strong> in Impostazioni per vedere le statistiche reali.</div>`:''}
+    ${meta?.fetchedAt?`<div style="margin-top:8px;font-size:11px;color:var(--text3)">Aggiornato: ${new Date(meta.fetchedAt).toLocaleString('it-IT')}</div>`:''}`;
+}
+
+function _closeDashDetail(){
+  _dashSelectedIdx=-1;
+  document.getElementById('dash-detail').style.display='none';
+  document.querySelectorAll('.dash-client-card').forEach(el=>el.classList.remove('selected'));
+}
+
+function _startGenFor(i){
+  const c=_dashClients[i];if(!c)return;
+  genState.client=c.id;showPage('generate');
+}
+
+async function _loadMeta(i){
+  const c=_dashClients[i];if(!c)return;
+  const s=getSettings();
+  if(!s.metaToken){alert('Token Meta non configurato in Impostazioni.');return}
+  const pageId=c.fbPageId||c.igAccountId;
+  if(!pageId){alert('Aggiungi il Page ID nella scheda cliente.');return}
+  const btns=document.querySelectorAll('.dc-meta-btn');
+  const btn=btns[i];if(btn){btn.textContent='…';btn.disabled=true}
+  try{
+    const[pageResp,insResp]=await Promise.all([
+      apiFetch({action:'meta',access_token:s.metaToken,endpoint:`/${pageId}?fields=fan_count,followers_count,name`}),
+      apiFetch({action:'meta',access_token:s.metaToken,endpoint:`/${pageId}/insights?metric=page_impressions,page_engaged_users&period=month`})
+    ]);
+    const pd=await pageResp.json(),ins=await insResp.json();
+    if(pd.error)throw new Error(pd.error.message);
+    const followers=pd.fan_count||pd.followers_count||0;
+    let reach=0,engagement=0;
+    if(ins.data)ins.data.forEach(m=>{
+      if(m.name==='page_impressions')reach=m.values?.[1]?.value||0;
+      if(m.name==='page_engaged_users')engagement=m.values?.[1]?.value||0;
+    });
+    const cache=load('mv_meta_cache')||{};
+    cache[c.id]={followers,reach,engagement,fetchedAt:new Date().toISOString()};
+    localStorage.setItem('mv_meta_cache',JSON.stringify(cache));
+    renderDashboard();
+  }catch(e){
+    alert('Errore Meta: '+e.message);
+    if(btn){btn.textContent='↺ Meta';btn.disabled=false}
+  }
+}
+
+function _fmtN(n){
+  if(!n&&n!==0)return'—';
+  if(n>=1e6)return(n/1e6).toFixed(1)+'M';
+  if(n>=1e3)return(n/1e3).toFixed(1)+'K';
+  return String(n);
+}
+
+// ═══════ CLIENTI ═══════
+let editingClientId=null;
+let _renderedClients=[];
+const CM_MAP={'cm-name':'name','cm-emoji':'emoji','cm-tipo':'tipo','cm-settore':'settore','cm-tono':'tono','cm-target':'target','cm-hashtag':'hashtag','cm-seo':'seo','cm-note':'note','cm-indirizzo':'indirizzo','cm-citta':'citta','cm-cap':'cap','cm-telefono':'telefono','cm-email':'email','cm-website':'website','cm-referente':'referente','cm-orari':'orari','cm-piva':'piva','cm-instagram':'instagram','cm-facebook':'facebook','cm-tiktok':'tiktok','cm-linkedin':'linkedin','cm-gbusiness':'gbusiness','cm-colori':'colori','cm-stile-visivo':'stileVisivo','cm-canva-brand':'canvaBrand','cm-fb-pageid':'fbPageId','cm-ig-accountid':'igAccountId','cm-ad-accountid':'adAccountId'};
+function showCmTab(idx){document.querySelectorAll('#cm-tabs .detail-tab').forEach((t,i)=>t.className='detail-tab'+(i===idx?' active':''));for(let i=0;i<4;i++){const el=document.getElementById('cm-tab-'+i);if(el)el.className='tab-content'+(i===idx?' active':'')}}
+function openClientModal(id=null){
+  editingClientId=id;showCmTab(0);
+  if(id){const c=getClients().find(x=>x.id===id);if(!c)return;document.getElementById('cm-title').textContent='Modifica cliente';
+    for(const[el,k]of Object.entries(CM_MAP)){const e=document.getElementById(el);if(e)e.value=c[k]||''}}
+  else{document.getElementById('cm-title').textContent='Nuovo cliente';Object.keys(CM_MAP).forEach(el=>{const e=document.getElementById(el);if(e)e.value=''})}
+  document.getElementById('client-modal').classList.add('show');
+}
+function closeClientModal(){document.getElementById('client-modal').classList.remove('show')}
+function saveClient(){
+  const name=document.getElementById('cm-name').value.trim(),tono=document.getElementById('cm-tono').value.trim();
+  if(!name){alert('Nome obbligatorio');return}if(!tono){alert('Tono di voce obbligatorio');return}
+  const clients=getClients();
+  const data={id:editingClientId||'c_'+Date.now(),createdAt:editingClientId?(clients.find(x=>x.id===editingClientId)||{}).createdAt:new Date().toISOString()};
+  for(const[el,k]of Object.entries(CM_MAP)){const e=document.getElementById(el);if(e)data[k]=e.value.trim()}
+  if(!data.emoji)data.emoji='📋';
+  if(editingClientId){const i=clients.findIndex(x=>x.id===editingClientId);if(i!==-1)clients[i]=data}else clients.push(data);
+  saveClients(clients);closeClientModal();renderClientsList();renderGenClientGrid();
+}
+function deleteClient(id){if(!confirm('Eliminare?'))return;saveClients(getClients().filter(x=>x.id!==id));renderClientsList();renderGenClientGrid()}
+function _openClientByIdx(i){openClientModal(_renderedClients[i]?.id)}
+function _deleteClientByIdx(i){const c=_renderedClients[i];if(c)deleteClient(c.id)}
+function renderClientsList(){
+  const list=document.getElementById('clients-list'),empty=document.getElementById('clients-empty');
+  _renderedClients=getClients();
+  if(!_renderedClients.length){list.innerHTML='';empty.style.display='block';return}empty.style.display='none';
+  list.innerHTML=_renderedClients.map((c,i)=>`<div class="client-list-item" onclick="_openClientByIdx(${i})">
+    <div class="emoji">${c.emoji}</div><div class="info"><div class="cname">${esc(c.name)}</div><div class="ctype">${esc(c.tipo||'—')} ${c.citta?'· '+esc(c.citta):''}</div></div>
+    <div class="actions"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();_openClientByIdx(${i})">Modifica</button><button class="btn btn-danger btn-sm" onclick="event.stopPropagation();_deleteClientByIdx(${i})">✕</button></div></div>`).join('');
+}
+async function testClientMeta(){
+  const pid=document.getElementById('cm-fb-pageid').value.trim(),s=getSettings();
+  if(!s.metaToken){document.getElementById('cm-meta-msg').textContent='Token Meta non configurato (Impostazioni)';return}
+  if(!pid){document.getElementById('cm-meta-msg').textContent='Inserisci un Page ID';return}
+  document.getElementById('cm-meta-msg').textContent='Test…';
+  try{const r=await apiFetch({action:'meta',access_token:s.metaToken,endpoint:`/${pid}?fields=name,fan_count,followers_count`});
+    const d=await r.json();if(d.error)throw new Error(d.error.message);
+    document.getElementById('cm-meta-msg').textContent=`✓ ${d.name} — ${d.fan_count||0} fan`}
+  catch(e){document.getElementById('cm-meta-msg').textContent='✗ '+e.message}
+}
+
+// ═══════ AI SUGGESTIONS ═══════
+async function aiSuggest(prompt,targetId){
+  const btn=event?.target;if(btn)btn.disabled=true;
+  try{const r=await apiFetch({action:'chat',messages:[{role:'user',content:prompt}],max_tokens:500,temperature:0.8});
+    const d=await r.json();const txt=d.content?.[0]?.text||'';if(txt){const el=document.getElementById(targetId);if(el)el.value=(el.value?el.value+'\n':'')+txt.trim()}}
+  catch(e){alert('Errore AI: '+e.message)}
+  if(btn)btn.disabled=false;
+}
+function aiSuggestTone(){
+  const tipo=document.getElementById('cm-tipo').value||'attività commerciale';
+  const name=document.getElementById('cm-name').value||'brand';
+  aiSuggest(`Sei un social media strategist. Suggerisci un tono di voce per ${name} (${tipo}). Scrivi in italiano, 3-4 righe con regole chiare su cosa fare e cosa evitare. Solo il testo, nessun preambolo.`,'cm-tono');
+}
+function aiSuggestEvents(){
+  const mese=document.getElementById('g-mese').value;const c=getClients().find(x=>x.id===genState.client);
+  const tipo=c?.tipo||'attività commerciale';
+  aiSuggest(`Elenca le ricorrenze e eventi principali in Italia per ${mese} rilevanti per ${tipo}. Una per riga, formato: DD/MM — Nome evento. Solo la lista, niente preamboli.`,'g-eventi');
+}
+
+// ═══════ GENERATE STATE ═══════
+let genState={client:null,step:0,conversation:[],posts:[],rawText:'',currentHistoryId:null};
+let voiceProfile='';
+async function loadVoiceProfile(){
+  try{const r=await fetch('/voice_profile_carmela.md');if(r.ok)voiceProfile=await r.text()}catch(e){}
+}
+let _genClients=[];
+function toggleChip(el){el.classList.toggle('selected')}
+function getSelectedChips(cid){return[...document.querySelectorAll('#'+cid+' .chip.selected')].map(c=>c.dataset.val)}
+function renderGenClientGrid(){
+  const grid=document.getElementById('gen-client-grid'),noC=document.getElementById('gs0-no-clients');
+  _genClients=getClients();
+  if(!_genClients.length){grid.innerHTML='';noC.style.display='block';return}noC.style.display='none';
+  grid.innerHTML=_genClients.map((c,i)=>`<div class="client-card ${genState.client===c.id?'selected':''}" onclick="selectGenClient(_genClients[${i}].id,this)">
+    <span class="emoji">${c.emoji}</span><div class="cname">${esc(c.name)}</div><div class="ctype">${esc(c.tipo||'')}</div></div>`).join('');
+}
+function selectGenClient(id,el){document.querySelectorAll('.client-card').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');genState.client=id;document.getElementById('btn-gs0').disabled=false;populateSavedPlans(id)}
+function populateSavedPlans(cid){const plans=getHistory().filter(h=>h.clientId===cid);const sel=document.getElementById('g-piano-saved');sel.innerHTML='<option value="">— Seleziona —</option>'+plans.map(p=>`<option value="${p.id}">${esc(p.mese)} (${p.posts?.length||0} post)</option>`).join('')}
+function loadSavedPlan(){const id=document.getElementById('g-piano-saved').value;if(!id)return;const p=getHistory().find(h=>h.id===id);if(p)document.getElementById('g-piano-prec').value=p.rawText||''}
+function genNext(s){document.querySelectorAll('.gen-step').forEach(x=>x.classList.remove('active'));document.getElementById('gs-'+s).classList.add('active');genState.step=s;updateGenStepper(s)}
+function updateGenStepper(a){for(let i=0;i<4;i++){const el=document.getElementById('gsi-'+i);el.className='step-item'+(i<a?' done':i===a?' active':'');el.querySelector('.step-dot').textContent=i<a?'✓':(i+1)}}
+function resetGen(){genState={client:null,step:0,conversation:[],posts:[],rawText:'',currentHistoryId:null};['g-eventi','g-note','g-piano-prec','g-target','g-canva-link','mod-input'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('canva-link-info').style.display='none';renderGenClientGrid();updateGenStepper(0)}
+
+const GROQ_MODELS=[{v:'llama-3.3-70b-versatile',l:'Llama 3.3 70B (consigliato)'},{v:'llama-3.1-8b-instant',l:'Llama 3.1 8B (veloce)'},{v:'mixtral-8x7b-32768',l:'Mixtral 8x7B'}];
+const OR_MODELS=[{v:'anthropic/claude-haiku-4-5',l:'Claude Haiku 4.5'},{v:'anthropic/claude-sonnet-4-5',l:'Claude Sonnet 4.5'},{v:'meta-llama/llama-3.3-70b-instruct',l:'Llama 3.3 70B'},{v:'google/gemini-2.0-flash-001',l:'Gemini 2.0 Flash'},{v:'openai/gpt-4o-mini',l:'GPT-4o Mini'}];
+function updateModelOptions(){
+  const prov=document.getElementById('g-provider').value;const sel=document.getElementById('g-model');
+  const models=prov==='openrouter'?OR_MODELS:GROQ_MODELS;
+  sel.innerHTML=models.map(m=>`<option value="${m.v}">${m.l}</option>`).join('');
+}
+
+function onCanvaLink(){
+  const link=document.getElementById('g-canva-link').value.trim();
+  const info=document.getElementById('canva-link-info');
+  if(link&&link.includes('canva.com/design/')){
+    const idMatch=link.match(/design\/([A-Za-z0-9_-]+)/);
+    info.style.display='block';
+    info.innerHTML=idMatch?`✓ Design ID: <strong>${idMatch[1]}</strong> — il link verrà passato come riferimento all'AI`:'⚠ Link Canva non riconosciuto';
+  }else{info.style.display='none'}
+}
+
+// ═══════ SYSTEM PROMPT ═══════
+function buildSystemPrompt(){
+  const c=getClients().find(x=>x.id===genState.client);if(!c)return'';
+  const platforms=getSelectedChips('g-platforms').join(', ')||'Instagram';
+  const obiettivi=getSelectedChips('g-obiettivi').join(', ')||'Brand awareness';
+  const formati=getSelectedChips('g-formati').join(', ')||'Post statico';
+  const pilastri=getSelectedChips('g-pilastri').join(', ')||'Prodotto/servizio';
+  const mese=document.getElementById('g-mese').value;
+  const freq=document.getElementById('g-freq').value;
+  const npost=document.getElementById('g-npost').value;
+  const eventi=document.getElementById('g-eventi').value.trim();
+  const target=document.getElementById('g-target').value.trim()||c.target||'';
+  const note=document.getElementById('g-note').value.trim();
+  const template=document.getElementById('g-template').value.trim();
+  const pianoPrec=document.getElementById('g-piano-prec').value.trim();
+  const canvaLink=document.getElementById('g-canva-link').value.trim();
+  let sys=`Sei un social media manager esperto dell'agenzia Move di Pescara. Crei piani editoriali mensili pronti per il copia-incolla.
+
+CLIENTE: ${c.name}
+ATTIVITÀ: ${c.tipo||'—'}
+TONO DI VOCE:
+${c.tono}
+${c.hashtag?'HASHTAG: '+c.hashtag:''}
+${c.seo?'PAROLE CHIAVE SEO: '+c.seo:''}
+${c.stileVisivo?'STILE VISIVO: '+c.stileVisivo:''}
+
+MESE: ${mese}
+FREQUENZA: ${freq}
+POST DA GENERARE: ${npost}
+PIATTAFORME: ${platforms}
+OBIETTIVI: ${obiettivi}
+FORMATI: ${formati}
+PILASTRI: ${pilastri}
+${target?'TARGET: '+target:''}
+${eventi?'RICORRENZE/EVENTI: '+eventi:''}
+${note?'NOTE: '+note:''}
+${canvaLink?'RIFERIMENTO CANVA: '+canvaLink+' (usa come ispirazione visiva e stilistica)':''}
+
+FORMAT OBBLIGATORIO per ogni post:
+${template}
+
+ISTRUZIONI:
+- Ogni post inizia con DATA: GG/MM
+- Rispetta il tono di voce del cliente
+- VISUAL: descrivi in dettaglio immagine/video (soggetto, inquadratura, colori, stile, mood)
+- Caption pronte per copia-incolla con emoji e CTA
+- SEO: includi 3-5 parole chiave rilevanti per ogni post
+- Separa ogni post con "---" su riga singola
+- Nessun preambolo. Inizia col primo post.
+- Genera esattamente ${npost} post`;
+  if(pianoPrec)sys+='\n\nPIANO PRECEDENTE:\n---\n'+pianoPrec.substring(0,3000)+'\n---';
+  if(voiceProfile)sys+='\n\n---\n\n## STILE DI SCRITTURA — VOICE PROFILE CARMELA\n\n'+voiceProfile;
+  return sys;
+}
+
+// ═══════ AI CALL ═══════
+async function callAI(messages,systemPrompt,retry=0){
+  const provider=document.getElementById('g-provider')?.value||'groq';
+  const model=document.getElementById('g-model')?.value||(provider==='openrouter'?'meta-llama/llama-3.3-70b-instruct':'llama-3.3-70b-versatile');
+  const temp=parseFloat(document.getElementById('g-temperature')?.value||0.7);
+  const maxT=parseInt(document.getElementById('g-max-tokens')?.value||4096);
+  const resp=await apiFetch({action:'chat',provider,model,max_tokens:maxT,temperature:temp,system:systemPrompt,messages});
+  if(resp.status===429||resp.status===529){if(retry<3){const w=retry===0?15:30;const m=document.getElementById('gen-loader-msg');if(m)m.textContent=`⏳ Rate limit. Attendo ${w}s…`;await sleep(w*1000);return callAI(messages,systemPrompt,retry+1)}throw new Error('Troppe richieste. Riprova.')}
+  if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`Errore HTTP ${resp.status}`)}
+  const d=await resp.json();return d.content?.map(b=>b.type==='text'?b.text:'').join('')||'';
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+
+// ═══════ GENERATE ═══════
+async function startGeneration(){
+  if(!genState.client){alert('Seleziona un cliente.');return}
+  const c=getClients().find(x=>x.id===genState.client);if(!c?.tono){alert('Il cliente non ha tono di voce.');return}
+  const npost=parseInt(document.getElementById('g-npost').value);
+  genNext(3);genState.conversation=[];
+  document.getElementById('gen-loader').classList.add('show');document.getElementById('gen-output').style.display='none';document.getElementById('btn-genera').disabled=true;
+  const pEl=document.getElementById('gen-progress'),pBar=document.getElementById('progress-bar');pEl.classList.add('show');
+  let pct=5;const msgs=['Analizzando il briefing…','Costruendo il calendario…','Scrivendo le caption…','Descrivendo i visual…','Ritocchi finali…'];let mi=0;
+  const mEl=document.getElementById('gen-loader-msg');mEl.textContent=msgs[0];
+  const iv=setInterval(()=>{mi=(mi+1)%msgs.length;mEl.textContent=msgs[mi];pct=Math.min(pct+15,85);pBar.style.width=pct+'%'},3000);
+  try{
+    const sys=buildSystemPrompt(),mese=document.getElementById('g-mese').value;
+    genState.conversation=[{role:'user',content:`Genera il piano editoriale completo per ${c.name}, ${mese}, ${npost} post. Inizia subito.`}];
+    const text=await callAI(genState.conversation,sys);
+    genState.conversation.push({role:'assistant',content:text});genState.rawText=text;genState.posts=parsePosts(text);
+    const entry={id:'h_'+Date.now(),clientId:genState.client,clientName:c.name,clientEmoji:c.emoji,mese,posts:genState.posts,rawText:text,conversation:genState.conversation,createdAt:new Date().toISOString()};
+    genState.currentHistoryId=entry.id;const hist=getHistory();hist.unshift(entry);if(hist.length>100)hist.pop();saveHistory(hist);
+    clearInterval(iv);pBar.style.width='100%';document.getElementById('progress-label').textContent=`✓ ${genState.posts.length} post generati`;
+    setTimeout(()=>pEl.classList.remove('show'),1500);renderOutput(c,mese);
+  }catch(e){clearInterval(iv);pEl.classList.remove('show');document.getElementById('gen-loader').classList.remove('show');
+    document.getElementById('gen-output').style.display='block';document.getElementById('gen-posts-list').innerHTML=`<div class="alert alert-err"><strong>Errore:</strong> ${esc(e.message)}</div>`}
+  document.getElementById('btn-genera').disabled=false;
+}
+function renderOutput(c,mese){document.getElementById('gen-loader').classList.remove('show');document.getElementById('gen-output').style.display='block';document.getElementById('out-title').textContent=`Piano — ${c.name}`;document.getElementById('out-sub').textContent=`${mese} · ${genState.posts.length} post`;renderPostsList(genState.posts,'gen-posts-list')}
+
+// ═══════ PARSE POSTS ═══════
+function parsePosts(text){
+  const norm=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/\n\s*-{3,}\s*\n/g,'\n---\n');
+  return norm.split(/\n---\n/).map(b=>b.trim()).filter(b=>b.length>10).map((block,i)=>{
+    const f=s=>{const m=block.match(new RegExp(s+'\\s*[:\\-]\\s*([\\s\\S]+?)(?=\\n(?:DATA|FORMATO|PIATTAFORMA|PILASTRO|OBIETTIVO|VISUAL|CAPTION|HASHTAG|SEO|CTA)\\s*[:\\-]|$)','i'));return m?m[1].trim():''};
+    const dateM=block.match(/^(?:DATA\s*[:\-]\s*)?(\d{1,2}\/\d{2})/m);
+    let caption=f('CAPTION');if(!caption)caption=block.replace(/(?:DATA|FORMATO|OBIETTIVO|VISUAL|HASHTAG|SEO|PIATTAFORMA|PILASTRO|CTA)\s*[:\-]\s*[^\n]+/gi,'').trim();
+    return{date:dateM?dateM[1]:`Post ${i+1}`,format:f('FORMATO'),obiettivo:f('OBIETTIVO'),visual:f('VISUAL'),caption,hashtag:f('HASHTAG'),seo:f('SEO'),piattaforma:f('PIATTAFORMA'),pilastro:f('PILASTRO'),raw:block.trim()};
+  }).filter(p=>p.caption);
+}
+
+// ═══════ RENDER POSTS ═══════
+let _renderPosts=[],_renderCid='';
+function renderPostsList(posts,cid){
+  _renderPosts=posts;_renderCid=cid;const el=document.getElementById(cid);if(!el)return;
+  if(!posts.length){el.innerHTML='<div class="alert alert-info">Nessun post. Controlla l\'output.</div>';return}
+  el.innerHTML=posts.map((p,i)=>`<div class="post-block" id="pb-${cid}-${i}">
+    <div class="post-meta"><span class="post-date-badge">${esc(p.date)}</span>${p.format?`<span class="post-format-badge">${esc(p.format)}</span>`:''}${p.piattaforma?`<span class="post-format-badge">${esc(p.piattaforma)}</span>`:''}${p.obiettivo?`<span class="post-obj-badge">${esc(p.obiettivo)}</span>`:''}</div>
+    <div class="post-caption collapsed" id="pc-${cid}-${i}">${esc(p.caption)}</div>
+    ${p.visual?`<div class="post-visual-desc">🎨 <strong>Visual:</strong> ${esc(p.visual)}</div>`:''}
+    ${p.hashtag?`<div style="margin-top:6px;font-size:11px;color:var(--blue)">${esc(p.hashtag)}</div>`:''}
+    ${p.seo?`<div style="margin-top:4px;font-size:11px;color:var(--amber)">🔍 SEO: ${esc(p.seo)}</div>`:''}
+    <div class="post-footer">
+      <div class="expand-link" onclick="togglePC('${cid}',${i})" id="pe-${cid}-${i}">mostra tutto ↓</div>
+      <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="editPost(${i})">✏ Modifica</button><button class="btn btn-ghost btn-sm" onclick="copyRaw(${i})">Copia</button></div>
+    </div>
+    <div id="edit-${cid}-${i}" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label>Data</label><input id="ed-date-${i}" style="font-size:12px"></div>
+        <div><label>Formato</label><input id="ed-fmt-${i}" style="font-size:12px"></div>
+        <div><label>Piattaforma</label><input id="ed-plat-${i}" style="font-size:12px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label>Obiettivo</label><input id="ed-obj-${i}" style="font-size:12px"></div>
+        <div><label>Pilastro</label><input id="ed-pil-${i}" style="font-size:12px"></div>
+      </div>
+      <div style="margin-bottom:8px"><label>Caption</label><textarea id="ed-cap-${i}" rows="4" style="font-size:12px"></textarea></div>
+      <div style="margin-bottom:8px"><label>Visual</label><textarea id="ed-vis-${i}" rows="2" style="font-size:12px"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label>Hashtag</label><input id="ed-hash-${i}" style="font-size:12px"></div>
+        <div><label>SEO</label><input id="ed-seo-${i}" style="font-size:12px"></div>
+      </div>
+      <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="savePostEdit(${i})">Salva</button><button class="btn btn-ghost btn-sm" onclick="cancelPostEdit(${i})">Annulla</button><button class="btn btn-danger btn-sm" onclick="deletePost(${i})">Elimina post</button></div>
+    </div>
+  </div>`).join('');
+}
+function togglePC(c,i){const el=document.getElementById(`pc-${c}-${i}`),b=document.getElementById(`pe-${c}-${i}`);const x=el.classList.toggle('collapsed');b.textContent=x?'mostra tutto ↓':'comprimi ↑'}
+function copyRaw(i){if(_renderPosts[i])copyText(_renderPosts[i].raw)}
+function editPost(i){
+  const p=_renderPosts[i];if(!p)return;const cid=_renderCid;
+  document.getElementById(`edit-${cid}-${i}`).style.display='block';
+  document.getElementById(`ed-date-${i}`).value=p.date||'';
+  document.getElementById(`ed-fmt-${i}`).value=p.format||'';
+  document.getElementById(`ed-plat-${i}`).value=p.piattaforma||'';
+  document.getElementById(`ed-obj-${i}`).value=p.obiettivo||'';
+  document.getElementById(`ed-pil-${i}`).value=p.pilastro||'';
+  document.getElementById(`ed-cap-${i}`).value=p.caption||'';
+  document.getElementById(`ed-vis-${i}`).value=p.visual||'';
+  document.getElementById(`ed-hash-${i}`).value=p.hashtag||'';
+  document.getElementById(`ed-seo-${i}`).value=p.seo||'';
+}
+function cancelPostEdit(i){document.getElementById(`edit-${_renderCid}-${i}`).style.display='none'}
+function savePostEdit(i){
+  const p=_renderPosts[i];if(!p)return;
+  p.date=document.getElementById(`ed-date-${i}`).value.trim();
+  p.format=document.getElementById(`ed-fmt-${i}`).value.trim();
+  p.piattaforma=document.getElementById(`ed-plat-${i}`).value.trim();
+  p.obiettivo=document.getElementById(`ed-obj-${i}`).value.trim();
+  p.pilastro=document.getElementById(`ed-pil-${i}`).value.trim();
+  p.caption=document.getElementById(`ed-cap-${i}`).value.trim();
+  p.visual=document.getElementById(`ed-vis-${i}`).value.trim();
+  p.hashtag=document.getElementById(`ed-hash-${i}`).value.trim();
+  p.seo=document.getElementById(`ed-seo-${i}`).value.trim();
+  p.raw=`DATA: ${p.date}\nFORMATO: ${p.format}\nPIATTAFORMA: ${p.piattaforma}\nOBIETTIVO: ${p.obiettivo}\nVISUAL: ${p.visual}\nCAPTION: ${p.caption}\nHASHTAG: ${p.hashtag}\nSEO: ${p.seo}`;
+  // Update genState and history
+  if(genState.posts===_renderPosts){genState.posts=[..._renderPosts];
+    if(genState.currentHistoryId){const hist=getHistory();const idx=hist.findIndex(h=>h.id===genState.currentHistoryId);if(idx!==-1){hist[idx].posts=genState.posts;saveHistory(hist)}}}
+  renderPostsList(_renderPosts,_renderCid);
+}
+function deletePost(i){
+  if(!confirm('Eliminare questo post?'))return;
+  _renderPosts.splice(i,1);
+  if(genState.posts===_renderPosts||genState.currentHistoryId){genState.posts=[..._renderPosts];
+    if(genState.currentHistoryId){const hist=getHistory();const idx=hist.findIndex(h=>h.id===genState.currentHistoryId);if(idx!==-1){hist[idx].posts=genState.posts;saveHistory(hist)}}}
+  renderPostsList(_renderPosts,_renderCid);
+}
+
+// ═══════ MODIFICA ═══════
+async function applyModifica(){
+  const req=document.getElementById('mod-input').value.trim();if(!req)return;
+  document.getElementById('mod-loader').classList.add('show');
+  try{const sys=buildSystemPrompt();genState.conversation.push({role:'user',content:`Modifica: ${req}\n\nRestituisci il piano completo aggiornato.`});
+    const text=await callAI(genState.conversation,sys);genState.conversation.push({role:'assistant',content:text});genState.rawText=text;genState.posts=parsePosts(text);
+    renderPostsList(genState.posts,'gen-posts-list');document.getElementById('mod-input').value='';
+    if(genState.currentHistoryId){const hist=getHistory();const i=hist.findIndex(h=>h.id===genState.currentHistoryId);
+      if(i!==-1){hist[i].posts=genState.posts;hist[i].rawText=text;saveHistory(hist)}}}
+  catch(e){document.getElementById('gen-posts-list').insertAdjacentHTML('beforebegin',`<div class="alert alert-err">${esc(e.message)}</div>`)}
+  document.getElementById('mod-loader').classList.remove('show');
+}
+
+// ═══════ EXPORT ═══════
+function copyAllPosts(){copyText(genState.posts.map(p=>{let t=`📅 ${p.date}`;if(p.format)t+=` | ${p.format}`;t+='\n\n'+p.caption;if(p.visual)t+='\n\n🎨 Visual: '+p.visual;if(p.hashtag)t+='\n\n'+p.hashtag;if(p.seo)t+='\n🔍 SEO: '+p.seo;return t}).join('\n\n════════════════\n\n'))}
+function postsToCSV(posts){const h=['Data','Formato','Piattaforma','Obiettivo','Pilastro','Caption','Visual','Hashtag','SEO'];const rows=posts.map(p=>[p.date,p.format,p.piattaforma,p.obiettivo,p.pilastro,p.caption,p.visual,p.hashtag,p.seo].map(v=>'"'+(v||'').replace(/"/g,'""')+'"'));return[h.join(','),...rows.map(r=>r.join(','))].join('\n')}
+function exportCSV(){const c=getClients().find(x=>x.id===genState.client);dl(postsToCSV(genState.posts),'text/csv',`piano-${(c?.name||'move').toLowerCase().replace(/\s+/g,'-')}.csv`)}
+function exportHTML(){
+  const c=getClients().find(x=>x.id===genState.client),mese=document.getElementById('g-mese')?.value||'';
+  let h=`<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Piano ${esc(c?.name||'')} — ${esc(mese)}</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#222;background:#fafafa}h1{font-size:24px;margin-bottom:4px}h2{color:#666;font-size:14px;font-weight:normal;margin-bottom:30px}.post{border:1px solid #ddd;border-radius:10px;padding:18px;margin-bottom:14px;background:#fff}.meta{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}.badge{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600}.date{background:#c8ff5a;color:#111}.fmt{background:#e3f0ff;color:#2563eb}.obj{background:#fef3c7;color:#92400e}.caption{font-size:14px;line-height:1.6;white-space:pre-wrap;margin-bottom:8px}.visual{background:#f3e8ff;color:#7c3aed;padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:8px}.hash{color:#2563eb;font-size:12px}.seo{color:#92400e;font-size:12px;margin-top:4px}</style></head><body><h1>Piano Editoriale — ${esc(c?.name||'')}</h1><h2>${esc(mese)}</h2>`;
+  genState.posts.forEach(p=>{h+=`<div class="post"><div class="meta"><span class="badge date">${esc(p.date)}</span>${p.format?`<span class="badge fmt">${esc(p.format)}</span>`:''}${p.obiettivo?`<span class="badge obj">${esc(p.obiettivo)}</span>`:''}</div><div class="caption">${esc(p.caption)}</div>${p.visual?`<div class="visual">🎨 ${esc(p.visual)}</div>`:''}${p.hashtag?`<div class="hash">${esc(p.hashtag)}</div>`:''}${p.seo?`<div class="seo">🔍 SEO: ${esc(p.seo)}</div>`:''}</div>`});
+  h+=`</body></html>`;dl(h,'text/html',`piano-${(c?.name||'x').toLowerCase().replace(/\s+/g,'-')}-${mese.replace(/\s/g,'-')}.html`);
+}
+function dl(content,type,name){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click()}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>{const m=document.createElement('div');m.style.cssText='position:fixed;top:14px;right:14px;background:var(--accent);color:#0e0e0f;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:700;z-index:999;pointer-events:none';m.textContent='✓ Copiato';document.body.appendChild(m);setTimeout(()=>m.remove(),1800)}).catch(()=>{})}
+
+// ═══════ STORICO ═══════
+let viewingHistoryId=null;
+function renderHistoryList(){const list=document.getElementById('history-list'),empty=document.getElementById('history-empty'),hist=getHistory();if(!hist.length){list.innerHTML='';empty.style.display='block';return}empty.style.display='none';list.innerHTML=hist.map(h=>`<div class="history-item" onclick="openHistoryModal('${h.id}')"><div style="font-size:22px">${h.clientEmoji||'📋'}</div><div class="h-info"><div class="h-title">${esc(h.clientName)} — ${esc(h.mese)}</div><div class="h-meta">${new Date(h.createdAt).toLocaleDateString('it',{day:'2-digit',month:'long',year:'numeric'})}</div></div><div class="h-count">${h.posts?.length||0} post</div></div>`).join('')}
+function openHistoryModal(id){viewingHistoryId=id;const h=getHistory().find(x=>x.id===id);if(!h)return;document.getElementById('hm-title').textContent=`${h.clientName} — ${h.mese}`;document.getElementById('hm-meta').textContent=`${new Date(h.createdAt).toLocaleDateString('it',{day:'2-digit',month:'long',year:'numeric'})} · ${h.posts?.length||0} post`;renderPostsList(h.posts||[],'hm-posts');document.getElementById('history-modal').classList.add('show')}
+function copyHistoryPosts(){const h=getHistory().find(x=>x.id===viewingHistoryId);if(!h)return;copyText((h.posts||[]).map(p=>{let t=`📅 ${p.date}`;if(p.format)t+=` | ${p.format}`;t+='\n\n'+p.caption;if(p.visual)t+='\n\n🎨 Visual: '+p.visual;if(p.hashtag)t+='\n\n'+p.hashtag;return t}).join('\n\n════════════════\n\n'))}
+function exportHistoryCSV(){const h=getHistory().find(x=>x.id===viewingHistoryId);if(!h)return;dl(postsToCSV(h.posts||[]),'text/csv',`piano-${h.clientName.toLowerCase().replace(/\s+/g,'-')}.csv`)}
+function exportHistoryHTML(){const h=getHistory().find(x=>x.id===viewingHistoryId);if(!h)return;const sc=genState.client,sp=genState.posts;genState.client=h.clientId;genState.posts=h.posts||[];exportHTML();genState.client=sc;genState.posts=sp}
+function useAsReference(){const h=getHistory().find(x=>x.id===viewingHistoryId);if(!h)return;document.getElementById('history-modal').classList.remove('show');showPage('generate');document.getElementById('g-piano-prec').value=h.rawText||''}
+function deleteHistoryItem(){if(!confirm('Eliminare?'))return;saveHistory(getHistory().filter(x=>x.id!==viewingHistoryId));document.getElementById('history-modal').classList.remove('show');renderHistoryList()}
+
+// ═══════ SETTINGS ═══════
+function loadSettingsPage(){
+  document.getElementById('s-binid').value=getBinId();
+  const s=getSettings();
+  document.getElementById('s-meta-token').value=s.metaToken||'';
+  document.getElementById('s-canva-token').value=s.canvaToken||'';
+  checkConfig();
+}
+function refreshBinIdField(){document.getElementById('s-binid').value=getBinId()}
+function copyBinId(){const id=getBinId();if(!id){showMsg('settings-msg','Nessun Codice Sync da copiare');return}copyText(id);showMsg('settings-msg','✓ Codice copiato')}
+function toggleSection(el){el.nextElementSibling.style.display=el.nextElementSibling.style.display==='none'?'block':'none'}
+function saveMetaToken(){const s=getSettings();s.metaToken=document.getElementById('s-meta-token').value.trim();saveSettingsObj(s);showMsg('meta-msg','✓ Salvato')}
+function saveCanvaToken(){const s=getSettings();s.canvaToken=document.getElementById('s-canva-token').value.trim();saveSettingsObj(s);showMsg('canva-msg','✓ Salvato')}
+async function checkConfig(){
+  try{const r=await apiFetch({action:'check-config'});const d=await r.json();
+    const s=getSettings();
+    const binId=getBinId();
+    const items=[
+      {n:'Groq AI (gratuito)',ok:d.groq,sub:d.groq?null:'Imposta GROQ_API_KEY su Netlify'},
+      {n:'OpenRouter (alternativo)',ok:d.openrouter,sub:d.openrouter?null:'Imposta OPENROUTER_API_KEY su Netlify'},
+      {n:'Cloud Sync (Netlify Blobs)',ok:d.blobs,sub:d.blobs?null:'Funziona solo su Netlify, non in locale'},
+      {n:'Codice Sync',ok:!!binId,sub:binId?binId.slice(0,18)+'…':'Premi ☁ Sync ora per generarlo'},
+      {n:'Meta Business',ok:!!s.metaToken,sub:null},
+      {n:'Canva',ok:!!s.canvaToken,sub:null},
+    ];
+    document.getElementById('config-status-list').innerHTML=items.map(i=>`<div class="setting-row">
+      <div><div class="setting-label">${i.n}</div>${i.sub?`<div class="setting-sub">${esc(i.sub)}</div>`:''}
+      </div><div class="setting-ctrl"><span class="${i.ok?'config-ok':'config-err'}">${i.ok?'✓ OK':'✗ Mancante'}</span></div></div>`).join('');
+    const dot=document.getElementById('api-dot'),txt=document.getElementById('api-status-text');
+    const aiOk=d.groq||d.openrouter;dot.className='api-dot '+(aiOk?'ok':'err');txt.textContent=aiOk?'AI pronto':'AI non configurata'}
+  catch(e){document.getElementById('config-status-list').innerHTML=`<div class="alert alert-err">${e.message}</div>`}
+}
+async function testGroq(){
+  const el=document.getElementById('ai-test-result');el.textContent='Testing Groq…';el.style.color='var(--text3)';
+  try{const r=await apiFetch({action:'chat',provider:'groq',messages:[{role:'user',content:'Rispondi solo: OK Groq funziona'}],max_tokens:20});
+    const d=await r.json();if(r.ok&&d.content?.[0]?.text){el.textContent='✓ Groq OK: '+d.content[0].text.substring(0,40);el.style.color='var(--accent)'}
+    else{el.textContent='✗ Groq: '+(d.error?.message||'Errore');el.style.color='var(--red)'}}
+  catch(e){el.textContent='✗ Groq: '+e.message;el.style.color='var(--red)'}
+}
+async function testOpenRouter(){
+  const el=document.getElementById('ai-test-result');el.textContent='Testing OpenRouter…';el.style.color='var(--text3)';
+  try{const r=await apiFetch({action:'chat',provider:'openrouter',model:'meta-llama/llama-3.3-70b-instruct',messages:[{role:'user',content:'Rispondi solo: OK OpenRouter funziona'}],max_tokens:20});
+    const d=await r.json();if(r.ok&&d.content?.[0]?.text){el.textContent='✓ OpenRouter OK: '+d.content[0].text.substring(0,40);el.style.color='var(--accent)'}
+    else{el.textContent='✗ OpenRouter: '+(d.error?.message||'Errore');el.style.color='var(--red)'}}
+  catch(e){el.textContent='✗ OpenRouter: '+e.message;el.style.color='var(--red)'}
+}
+async function testMetaAPI(){const s=getSettings();if(!s.metaToken){showMsg('meta-msg','Token non inserito');return}showMsg('meta-msg','Test Meta…');try{const r=await apiFetch({action:'meta',access_token:s.metaToken,endpoint:'/me?fields=name,id'});const d=await r.json();if(d.error)throw new Error(d.error.message);showMsg('meta-msg',`✓ Meta: ${d.name}`)}catch(e){showMsg('meta-msg','✗ '+e.message)}}
+function showMsg(id,msg){const el=document.getElementById(id);if(el)el.textContent=msg;setTimeout(()=>{if(el)el.textContent=''},6000)}
+
+// ═══════ DATA ═══════
+function exportData(){const d=getAllData();delete d.auth;dl(JSON.stringify(d,null,2),'application/json',`move-${new Date().toISOString().slice(0,10)}.json`)}
+function importData(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.clients)saveClients(d.clients);if(d.history)saveHistory(d.history);if(d.settings)saveSettingsObj(d.settings);alert('Importato!');refreshAll()}catch{alert('File non valido.')}};r.readAsText(f)}
+function clearAll(){if(!confirm('Eliminare TUTTI i dati?'))return;if(!confirm('Conferma'))return;Object.values(KEYS).forEach(k=>localStorage.removeItem(k));location.reload()}
+
+// ═══════ UTILS ═══════
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function populateMonths(){const sel=document.getElementById('g-mese');const now=new Date();const mesi=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];sel.innerHTML='';for(let i=0;i<12;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);const o=document.createElement('option');o.value=`${mesi[d.getMonth()]} ${d.getFullYear()}`;o.textContent=o.value;sel.appendChild(o)}}
+
+// ═══════ DEFAULTS ═══════
+function initDefaults(){
+  if(getClients().length>0)return;
+  // Scrive direttamente in localStorage senza triggerare scheduleSync
+  // (i dati demo non devono mai sovrascrivere il cloud)
+  localStorage.setItem(KEYS.clients,JSON.stringify([
+    {id:'c_gaz',name:'Gaz',emoji:'🌮',tipo:'Street food, Montesilvano',settore:'Ristorazione',tono:'Diretto, ironico, zero-gourmet. Claim: EAT THE STREET. Linguaggio da strada, breve, viscerale.',hashtag:'#eatthestreet #streetfood #montesilvano',seo:'street food montesilvano, panini gourmet abruzzo',target:'Giovani 18-35',citta:'Montesilvano',createdAt:new Date().toISOString()},
+    {id:'c_bacone',name:'Da Bacone',emoji:'🐟',tipo:'Ristorante di pesce',settore:'Ristorazione',tono:'Elegante ma familiare. Tradizione, mare Adriatico, famiglia. Rispetto per la materia prima.',hashtag:'#pescara #pesce #adriatico',seo:'ristorante pesce pescara, pesce fresco adriatico',target:'Famiglie, coppie',citta:'Pescara',createdAt:new Date().toISOString()},
+    {id:'c_alchimia',name:'Alchimia',emoji:'🍕',tipo:'Pizzeria contemporanea',settore:'Ristorazione',tono:"Caldo e ironico. Usare sempre 'qui' invece del nome. Mai salesy.",hashtag:'#pizzapescara #impasto',seo:'pizza contemporanea pescara, pizzeria artigianale',target:'Foodies 25-40',citta:'Pescara',createdAt:new Date().toISOString()},
+    {id:'c_summa',name:'Summa',emoji:'🍕',tipo:'Pizzeria',settore:'Ristorazione',tono:'Giocoso e cinico, mai salesy. Umorismo secco. Zero frasi fatte.',hashtag:'#summa #pizzapescara',seo:'pizzeria pescara centro, pizza napoletana pescara',target:'Giovani',citta:'Pescara',createdAt:new Date().toISOString()},
+    {id:'c_sarti',name:'Cooperativa Sarti',emoji:'🧵',tipo:'Sartoria e tessuti',settore:'Artigianato',tono:'Professionale e caldo. Artigianalità, qualità. Tono da artigiano orgoglioso.',hashtag:'#sartoria #tessuti #pescara',seo:'sartoria pescara, tessuti pregiati abruzzo',target:'Adulti 30-60',citta:'Pescara',createdAt:new Date().toISOString()},
+    {id:'c_modify',name:'Modify Body Art',emoji:'💉',tipo:'Studio tatuaggi e piercing',settore:'Beauty & Wellness',tono:'Istituzionale ma accessibile. Sicurezza, professionalità, igiene.',hashtag:'#tatuaggi #piercing #pescara',seo:'tatuaggi pescara, piercing professionali',target:'Giovani 18-35',citta:'Pescara',createdAt:new Date().toISOString()},
+    {id:'c_tim',name:'TIM Store',emoji:'📱',tipo:'Negozio telecom',settore:'Retail',tono:'Moderno, diretto, friendly. Chiaro sulle offerte.',hashtag:'#tim #telefonia #pescara',seo:'tim store pescara, offerte tim',target:'18-35',citta:'Pescara',createdAt:new Date().toISOString()},
+    {id:'c_vodafone',name:'Vodafone Store',emoji:'📡',tipo:'Negozio telecom',settore:'Retail',tono:'Dinamico, orientato alle promozioni. Energia senza eccessi.',hashtag:'#vodafone #telefonia #pescara',seo:'vodafone pescara, offerte vodafone',target:'Giovani',citta:'Pescara',createdAt:new Date().toISOString()},
+  ]));
+  updateBadges();
+}
+
+// ═══════ BOOT ═══════
+async function boot(){
+  await loadVoiceProfile();
+  populateMonths();updateModelOptions();updateBadges();
+  if(getBinId()){
+    _setBadge('● caricamento…','syncing');
+    const ok=await loadFromCloud(true).catch(()=>false);
+    _setBadge(ok?'● cloud':'● locale',ok?'synced':'');
+  } else {
+    _setBadge('● locale','');
+  }
+  initDefaults();
+  renderDashboard();renderGenClientGrid();
+}
+checkSession();
+</script>
+</body>
+</html>
