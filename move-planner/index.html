@@ -1013,7 +1013,7 @@ SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
       <div class="card" id="adv-card" style="display:none"><div class="card-label">Parametri avanzati</div>
         <div class="field-row">
           <div class="field"><label>Temperature (creatività)</label><input type="number" id="g-temperature" min="0.1" max="1.0" step="0.1" value="0.7"></div>
-          <div class="field"><label>Max tokens (lunghezza)</label><input type="number" id="g-max-tokens" min="512" max="8192" step="256" value="4096"></div>
+          <div class="field"><label>Max tokens (lunghezza)</label><input type="number" id="g-max-tokens" min="512" max="8192" step="256" value="8192"></div>
         </div>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-bottom:12px;cursor:pointer" onclick="document.getElementById('adv-card').style.display=document.getElementById('adv-card').style.display==='none'?'block':'none'">⚙ Parametri avanzati</div>
@@ -1794,8 +1794,8 @@ function resetGen(){genState={client:null,step:0,conversation:[],posts:[],rawTex
 const HF_MODELS=[
   {v:'meta-llama/Llama-3.3-70B-Instruct',l:'Llama 3.3 70B (consigliato)'},
   {v:'meta-llama/Llama-3.1-8B-Instruct',l:'Llama 3.1 8B (veloce)'},
-  {v:'Qwen/Qwen2.5-72B-Instruct',l:'Qwen 2.5 72B'},
-  {v:'mistralai/Mistral-7B-Instruct-v0.3',l:'Mistral 7B'},
+  {v:'deepseek-ai/DeepSeek-V3-0324',l:'DeepSeek V3'},
+  {v:'Qwen/Qwen2.5-72B-Instruct',l:'Qwen 2.5 72B (sperimentale)'},
 ];
 function updateModelOptions(){
   const sel=document.getElementById('g-model');if(!sel)return;
@@ -1871,7 +1871,7 @@ ISTRUZIONI:
 async function callAI(messages,systemPrompt,retry=0){
   const model=document.getElementById('g-model')?.value||'meta-llama/Llama-3.3-70B-Instruct';
   const temp=parseFloat(document.getElementById('g-temperature')?.value||0.7);
-  const maxT=parseInt(document.getElementById('g-max-tokens')?.value||4096);
+  const maxT=parseInt(document.getElementById('g-max-tokens')?.value||8192);
   const resp=await apiFetch({action:'chat',model,max_tokens:maxT,temperature:temp,system:systemPrompt,messages});
   if(resp.status===429||resp.status===529){if(retry<3){const w=retry===0?15:30;const m=document.getElementById('gen-loader-msg');if(m)m.textContent=`⏳ Rate limit. Attendo ${w}s…`;await sleep(w*1000);return callAI(messages,systemPrompt,retry+1)}throw new Error('Troppe richieste. Riprova.')}
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`Errore HTTP ${resp.status}`)}
@@ -2081,26 +2081,10 @@ async function clearAll(){
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML}
 function populateMonths(){const sel=document.getElementById('g-mese');const now=new Date();const mesi=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];sel.innerHTML='';for(let i=0;i<12;i++){const d=new Date(now.getFullYear(),now.getMonth()+i,1);const o=document.createElement('option');o.value=`${mesi[d.getMonth()]} ${d.getFullYear()}`;o.textContent=o.value;sel.appendChild(o)}}
 
-// ═══════ DEFAULTS (demo data for brand-new accounts) ═══════
-function initDefaults(){
-  if(getClients().length>0)return;
-  saveClients([
-    {id:'c_gaz',name:'Gaz',emoji:'🌮',tipo:'Street food, Montesilvano',settore:'Ristorazione',tono:'Diretto, ironico, zero-gourmet. Claim: EAT THE STREET. Linguaggio da strada, breve, viscerale.',hashtag:'#eatthestreet #streetfood #montesilvano',seo:'street food montesilvano, panini gourmet abruzzo',target:'Giovani 18-35',citta:'Montesilvano',createdAt:new Date().toISOString()},
-    {id:'c_bacone',name:'Da Bacone',emoji:'🐟',tipo:'Ristorante di pesce',settore:'Ristorazione',tono:'Elegante ma familiare. Tradizione, mare Adriatico, famiglia. Rispetto per la materia prima.',hashtag:'#pescara #pesce #adriatico',seo:'ristorante pesce pescara, pesce fresco adriatico',target:'Famiglie, coppie',citta:'Pescara',createdAt:new Date().toISOString()},
-    {id:'c_alchimia',name:'Alchimia',emoji:'🍕',tipo:'Pizzeria contemporanea',settore:'Ristorazione',tono:"Caldo e ironico. Usare sempre 'qui' invece del nome. Mai salesy.",hashtag:'#pizzapescara #impasto',seo:'pizza contemporanea pescara, pizzeria artigianale',target:'Foodies 25-40',citta:'Pescara',createdAt:new Date().toISOString()},
-    {id:'c_summa',name:'Summa',emoji:'🍕',tipo:'Pizzeria',settore:'Ristorazione',tono:'Giocoso e cinico, mai salesy. Umorismo secco. Zero frasi fatte.',hashtag:'#summa #pizzapescara',seo:'pizzeria pescara centro, pizza napoletana pescara',target:'Giovani',citta:'Pescara',createdAt:new Date().toISOString()},
-    {id:'c_sarti',name:'Cooperativa Sarti',emoji:'🧵',tipo:'Sartoria e tessuti',settore:'Artigianato',tono:'Professionale e caldo. Artigianalità, qualità. Tono da artigiano orgoglioso.',hashtag:'#sartoria #tessuti #pescara',seo:'sartoria pescara, tessuti pregiati abruzzo',target:'Adulti 30-60',citta:'Pescara',createdAt:new Date().toISOString()},
-    {id:'c_modify',name:'Modify Body Art',emoji:'💉',tipo:'Studio tatuaggi e piercing',settore:'Beauty & Wellness',tono:'Istituzionale ma accessibile. Sicurezza, professionalità, igiene.',hashtag:'#tatuaggi #piercing #pescara',seo:'tatuaggi pescara, piercing professionali',target:'Giovani 18-35',citta:'Pescara',createdAt:new Date().toISOString()},
-    {id:'c_tim',name:'TIM Store',emoji:'📱',tipo:'Negozio telecom',settore:'Retail',tono:'Moderno, diretto, friendly. Chiaro sulle offerte.',hashtag:'#tim #telefonia #pescara',seo:'tim store pescara, offerte tim',target:'18-35',citta:'Pescara',createdAt:new Date().toISOString()},
-    {id:'c_vodafone',name:'Vodafone Store',emoji:'📡',tipo:'Negozio telecom',settore:'Retail',tono:'Dinamico, orientato alle promozioni. Energia senza eccessi.',hashtag:'#vodafone #telefonia #pescara',seo:'vodafone pescara, offerte vodafone',target:'Giovani',citta:'Pescara',createdAt:new Date().toISOString()},
-  ]);
-}
-
 // ═══════ BOOT ═══════
 async function boot(){
   await loadVoiceProfile();
   populateMonths();updateModelOptions();
-  initDefaults();
   updateBadges();
   renderDashboard();renderGenClientGrid();
 }
