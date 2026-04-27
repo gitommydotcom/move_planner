@@ -2025,13 +2025,16 @@ function persistRenderedPosts(){
 }
 async function generateAllImages(posts,client){
   const lbl=document.getElementById('progress-label');
+  let firstErr='';
   for(let i=0;i<posts.length;i++){
     if(lbl)lbl.textContent=`🖼 Immagine ${i+1}/${posts.length}…`;
     try{
       const prompt=buildMediaPrompt(posts[i],client);
       const resp=await apiFetch({action:'image',prompt});
       if(resp.ok){const d=await resp.json();posts[i].imageUrl=d.dataUrl}
-    }catch(e){}
+      else{const e=await resp.json().catch(()=>({}));if(!firstErr)firstErr=e.error?.message||`HTTP ${resp.status}`;
+        if(i===0){alert('Generazione immagini fallita al primo tentativo:\n\n'+firstErr+'\n\nInterrompo il batch. Verifica che un provider HF (Nebius/Together/Fal-ai) sia attivato sul tuo account.');return}}
+    }catch(e){if(!firstErr)firstErr=e.message}
     if(_renderPosts===posts)renderPostsList(posts,_renderCid);
   }
 }
