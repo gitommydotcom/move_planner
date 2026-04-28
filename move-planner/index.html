@@ -1016,12 +1016,13 @@ SEO: [3-5 parole chiave SEO per il contenuto]</textarea></div>
           <div class="field"><label>Max tokens (lunghezza)</label><input type="number" id="g-max-tokens" min="512" max="8192" step="256" value="8192"></div>
         </div>
       </div>
-      <div class="card"><div class="card-label">🎨 Generazione media</div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+      <div class="card"><div class="card-label">🎨 Generazione immagini</div>
+        <div class="field"><label>Modello immagine</label><select id="g-image-model"></select></div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-top:6px">
           <input type="checkbox" id="g-auto-images" checked style="width:auto;margin:0">
-          <span>Genera automaticamente un'immagine per ogni post (FLUX.1-schnell)</span>
+          <span>Genera automaticamente un'immagine per ogni post</span>
         </label>
-        <div style="font-size:11px;color:var(--text3);margin-top:6px">I video si generano manualmente per post (più lenti, solo Reel/Video).</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px">Se il modello scelto fallisce, il backend prova in cascata gli altri provider HF.</div>
       </div>
       <div class="card"><div class="card-label">🎯 Controlli per-post</div>
         <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Forza data, formato, pilastro o una frase obbligata su singoli post. Opzionale.</div>
@@ -1971,7 +1972,22 @@ async function callAI(messages,systemPrompt,retry=0){
 }
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
-// ═══════ MEDIA GENERATION ═══════
+// ═══════ IMAGE GENERATION ═══════
+const IMAGE_MODELS=[
+  {v:'flux-schnell-nebius',l:'FLUX.1 Schnell (Nebius, veloce)'},
+  {v:'flux-schnell-together',l:'FLUX.1 Schnell (Together, free)'},
+  {v:'flux-schnell-fal',l:'FLUX.1 Schnell (Fal.ai)'},
+  {v:'flux-dev-fal',l:'FLUX.1 Dev (Fal.ai, max qualità)'},
+  {v:'flux-dev-nebius',l:'FLUX.1 Dev (Nebius)'},
+  {v:'sd35-large-fal',l:'Stable Diffusion 3.5 Large (Fal.ai)'},
+  {v:'sdxl-together',l:'Stable Diffusion XL (Together)'},
+  {v:'sdxl-legacy',l:'Stable Diffusion XL (HF legacy)'},
+];
+function updateImageModelOptions(){
+  const sel=document.getElementById('g-image-model');if(!sel)return;
+  sel.innerHTML=IMAGE_MODELS.map(m=>`<option value="${m.v}">${m.l}</option>`).join('');
+}
+function getSelectedImageModel(){return document.getElementById('g-image-model')?.value||'flux-schnell-nebius'}
 function buildMediaPrompt(post,client){
   const stile=client?.stileVisivo?` — Stile: ${client.stileVisivo}`:'';
   const visual=(post.visual||post.caption||'').trim().slice(0,500);
@@ -1981,9 +1997,10 @@ async function generateImageForPost(idx,buttonEl){
   const p=_renderPosts[idx];if(!p)return;
   const c=getClients().find(x=>x.id===genState.client)||getClients().find(x=>x.id===_currentHistoryClientId);
   const prompt=buildMediaPrompt(p,c);
+  const imageModel=getSelectedImageModel();
   if(buttonEl){buttonEl.disabled=true;buttonEl.textContent='⏳ Genero immagine…'}
   try{
-    const resp=await apiFetch({action:'image',prompt});
+    const resp=await apiFetch({action:'image',prompt,imageModel});
     if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${resp.status}`)}
     const d=await resp.json();
     p.imageUrl=d.dataUrl;
@@ -1992,24 +2009,6 @@ async function generateImageForPost(idx,buttonEl){
   }catch(e){
     alert('Errore immagine: '+e.message);
     if(buttonEl){buttonEl.disabled=false;buttonEl.textContent='🖼 Genera immagine'}
-  }
-}
-async function generateVideoForPost(idx,buttonEl){
-  const p=_renderPosts[idx];if(!p)return;
-  const c=getClients().find(x=>x.id===genState.client)||getClients().find(x=>x.id===_currentHistoryClientId);
-  if(!confirm('La generazione video può richiedere 1-2 minuti. Procedere?'))return;
-  const prompt=buildMediaPrompt(p,c);
-  if(buttonEl){buttonEl.disabled=true;buttonEl.textContent='⏳ Genero video (1-2 min)…'}
-  try{
-    const resp=await apiFetch({action:'video',prompt});
-    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||`HTTP ${resp.status}`)}
-    const d=await resp.json();
-    p.videoUrl=d.dataUrl;
-    persistRenderedPosts();
-    renderPostsList(_renderPosts,_renderCid);
-  }catch(e){
-    alert('Errore video: '+e.message+'\n(Il modello text-to-video HF può essere non disponibile o lento)');
-    if(buttonEl){buttonEl.disabled=false;buttonEl.textContent='🎬 Genera video'}
   }
 }
 function persistRenderedPosts(){
@@ -2025,15 +2024,16 @@ function persistRenderedPosts(){
 }
 async function generateAllImages(posts,client){
   const lbl=document.getElementById('progress-label');
+  const imageModel=getSelectedImageModel();
   let firstErr='';
   for(let i=0;i<posts.length;i++){
     if(lbl)lbl.textContent=`🖼 Immagine ${i+1}/${posts.length}…`;
     try{
       const prompt=buildMediaPrompt(posts[i],client);
-      const resp=await apiFetch({action:'image',prompt});
+      const resp=await apiFetch({action:'image',prompt,imageModel});
       if(resp.ok){const d=await resp.json();posts[i].imageUrl=d.dataUrl}
       else{const e=await resp.json().catch(()=>({}));if(!firstErr)firstErr=e.error?.message||`HTTP ${resp.status}`;
-        if(i===0){alert('Generazione immagini fallita al primo tentativo:\n\n'+firstErr+'\n\nInterrompo il batch. Verifica che un provider HF (Nebius/Together/Fal-ai) sia attivato sul tuo account.');return}}
+        if(i===0){alert('Generazione immagini fallita al primo tentativo:\n\n'+firstErr+'\n\nInterrompo il batch. Verifica i provider HF Inference attivati sul tuo account.');return}}
     }catch(e){if(!firstErr)firstErr=e.message}
     if(_renderPosts===posts)renderPostsList(posts,_renderCid);
   }
@@ -2088,14 +2088,12 @@ function parsePosts(text){
 
 // ═══════ RENDER POSTS ═══════
 let _renderPosts=[],_renderCid='',_currentHistoryViewId=null,_currentHistoryClientId=null;
-function isVideoFormat(fmt){return /reel|video/i.test(fmt||'')}
 function renderPostsList(posts,cid){
   _renderPosts=posts;_renderCid=cid;const el=document.getElementById(cid);if(!el)return;
   if(!posts.length){el.innerHTML='<div class="alert alert-info">Nessun post. Controlla l\'output.</div>';return}
   el.innerHTML=posts.map((p,i)=>`<div class="post-block" id="pb-${cid}-${i}">
     <div class="post-meta"><span class="post-date-badge">${esc(p.date)}</span>${p.format?`<span class="post-format-badge">${esc(p.format)}</span>`:''}${p.piattaforma?`<span class="post-format-badge">${esc(p.piattaforma)}</span>`:''}${p.obiettivo?`<span class="post-obj-badge">${esc(p.obiettivo)}</span>`:''}</div>
     ${p.imageUrl?`<div style="margin:8px 0"><img src="${p.imageUrl}" style="max-width:100%;border-radius:8px;border:1px solid var(--border)"></div>`:''}
-    ${p.videoUrl?`<div style="margin:8px 0"><video src="${p.videoUrl}" controls style="max-width:100%;border-radius:8px;border:1px solid var(--border)"></video></div>`:''}
     <div class="post-caption collapsed" id="pc-${cid}-${i}">${esc(p.caption)}</div>
     ${p.visual?`<div class="post-visual-desc">🎨 <strong>Visual:</strong> ${esc(p.visual)}</div>`:''}
     ${p.hashtag?`<div style="margin-top:6px;font-size:11px;color:var(--blue)">${esc(p.hashtag)}</div>`:''}
@@ -2104,7 +2102,6 @@ function renderPostsList(posts,cid){
       <div class="expand-link" onclick="togglePC('${cid}',${i})" id="pe-${cid}-${i}">mostra tutto ↓</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="generateImageForPost(${i},this)">${p.imageUrl?'🖼 Rigenera':'🖼 Genera immagine'}</button>
-        ${isVideoFormat(p.format)?`<button class="btn btn-ghost btn-sm" onclick="generateVideoForPost(${i},this)">${p.videoUrl?'🎬 Rigenera video':'🎬 Genera video'}</button>`:''}
         <button class="btn btn-ghost btn-sm" onclick="editPost(${i})">✏ Modifica</button>
         <button class="btn btn-ghost btn-sm" onclick="copyRaw(${i})">Copia</button>
       </div>
@@ -2190,7 +2187,7 @@ function exportCSV(){const c=getClients().find(x=>x.id===genState.client);dl(pos
 function exportHTML(){
   const c=getClients().find(x=>x.id===genState.client),mese=document.getElementById('g-mese')?.value||'';
   let h=`<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8"><title>Piano ${esc(c?.name||'')} — ${esc(mese)}</title><style>body{font-family:system-ui,sans-serif;max-width:800px;margin:40px auto;padding:0 20px;color:#222;background:#fafafa}h1{font-size:24px;margin-bottom:4px}h2{color:#666;font-size:14px;font-weight:normal;margin-bottom:30px}.post{border:1px solid #ddd;border-radius:10px;padding:18px;margin-bottom:14px;background:#fff}.meta{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}.badge{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600}.date{background:#c8ff5a;color:#111}.fmt{background:#e3f0ff;color:#2563eb}.obj{background:#fef3c7;color:#92400e}.caption{font-size:14px;line-height:1.6;white-space:pre-wrap;margin-bottom:8px}.visual{background:#f3e8ff;color:#7c3aed;padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:8px}.hash{color:#2563eb;font-size:12px}.seo{color:#92400e;font-size:12px;margin-top:4px}</style></head><body><h1>Piano Editoriale — ${esc(c?.name||'')}</h1><h2>${esc(mese)}</h2>`;
-  genState.posts.forEach(p=>{h+=`<div class="post"><div class="meta"><span class="badge date">${esc(p.date)}</span>${p.format?`<span class="badge fmt">${esc(p.format)}</span>`:''}${p.obiettivo?`<span class="badge obj">${esc(p.obiettivo)}</span>`:''}</div>${p.imageUrl?`<div style="margin:8px 0"><img src="${p.imageUrl}" style="max-width:100%;border-radius:8px"></div>`:''}${p.videoUrl?`<div style="margin:8px 0"><video src="${p.videoUrl}" controls style="max-width:100%;border-radius:8px"></video></div>`:''}<div class="caption">${esc(p.caption)}</div>${p.visual?`<div class="visual">🎨 ${esc(p.visual)}</div>`:''}${p.hashtag?`<div class="hash">${esc(p.hashtag)}</div>`:''}${p.seo?`<div class="seo">🔍 SEO: ${esc(p.seo)}</div>`:''}</div>`});
+  genState.posts.forEach(p=>{h+=`<div class="post"><div class="meta"><span class="badge date">${esc(p.date)}</span>${p.format?`<span class="badge fmt">${esc(p.format)}</span>`:''}${p.obiettivo?`<span class="badge obj">${esc(p.obiettivo)}</span>`:''}</div>${p.imageUrl?`<div style="margin:8px 0"><img src="${p.imageUrl}" style="max-width:100%;border-radius:8px"></div>`:''}<div class="caption">${esc(p.caption)}</div>${p.visual?`<div class="visual">🎨 ${esc(p.visual)}</div>`:''}${p.hashtag?`<div class="hash">${esc(p.hashtag)}</div>`:''}${p.seo?`<div class="seo">🔍 SEO: ${esc(p.seo)}</div>`:''}</div>`});
   h+=`</body></html>`;dl(h,'text/html',`piano-${(c?.name||'x').toLowerCase().replace(/\s+/g,'-')}-${mese.replace(/\s/g,'-')}.html`);
 }
 function dl(content,type,name){const b=new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click()}
@@ -2262,7 +2259,7 @@ function populateMonths(){const sel=document.getElementById('g-mese');const now=
 // ═══════ BOOT ═══════
 async function boot(){
   await loadVoiceProfile();
-  populateMonths();updateModelOptions();
+  populateMonths();updateModelOptions();updateImageModelOptions();
   updateBadges();
   renderDashboard();renderGenClientGrid();
 }

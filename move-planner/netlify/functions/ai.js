@@ -15,16 +15,20 @@ const HF_BASE = 'https://router.huggingface.co/v1/chat/completions';
 const DEFAULT_HF_MODEL = 'meta-llama/Llama-3.3-70B-Instruct';
 const HF_INFERENCE = 'https://api-inference.huggingface.co/models';
 
-// Image: HF Inference Providers (router) — provider must be enabled on the user's HF account.
-// Cascade: Nebius (cheap/fast) → Fal-ai → Together → legacy serverless inference.
-const IMAGE_PROVIDERS = [
-  { name: 'nebius',   url: 'https://router.huggingface.co/nebius/v1/images/generations',   model: 'black-forest-labs/flux-schnell',        kind: 'openai' },
-  { name: 'together', url: 'https://router.huggingface.co/together/v1/images/generations', model: 'black-forest-labs/FLUX.1-schnell-Free', kind: 'openai' },
-  { name: 'fal-ai',   url: 'https://router.huggingface.co/fal-ai/fal-ai/flux/schnell',     model: null,                                    kind: 'fal'    },
-  { name: 'hf-legacy', url: HF_INFERENCE + '/stabilityai/stable-diffusion-xl-base-1.0',    model: null,                                    kind: 'binary' },
-];
-
-const DEFAULT_VIDEO_MODEL = 'Lightricks/LTX-Video';
+// Image models — HF Inference Providers routing. Each entry maps a UI choice
+// to a concrete provider+endpoint+payload shape. The backend tries the chosen
+// model first, then falls back through IMAGE_MODELS_FALLBACK.
+const IMAGE_MODELS = {
+  'flux-schnell-nebius':   { label: 'FLUX.1 Schnell (Nebius, veloce)',     url: 'https://router.huggingface.co/nebius/v1/images/generations',   model: 'black-forest-labs/flux-schnell',        kind: 'openai' },
+  'flux-schnell-together': { label: 'FLUX.1 Schnell (Together, free)',     url: 'https://router.huggingface.co/together/v1/images/generations', model: 'black-forest-labs/FLUX.1-schnell-Free', kind: 'openai' },
+  'flux-schnell-fal':      { label: 'FLUX.1 Schnell (Fal.ai, qualità)',    url: 'https://router.huggingface.co/fal-ai/fal-ai/flux/schnell',     model: null,                                    kind: 'fal'    },
+  'flux-dev-fal':          { label: 'FLUX.1 Dev (Fal.ai, max qualità)',    url: 'https://router.huggingface.co/fal-ai/fal-ai/flux/dev',         model: null,                                    kind: 'fal'    },
+  'flux-dev-nebius':       { label: 'FLUX.1 Dev (Nebius)',                 url: 'https://router.huggingface.co/nebius/v1/images/generations',   model: 'black-forest-labs/flux-dev',            kind: 'openai' },
+  'sd35-large-fal':        { label: 'Stable Diffusion 3.5 Large (Fal.ai)', url: 'https://router.huggingface.co/fal-ai/fal-ai/stable-diffusion-v35-large', model: null,                          kind: 'fal'    },
+  'sdxl-together':         { label: 'Stable Diffusion XL (Together)',      url: 'https://router.huggingface.co/together/v1/images/generations', model: 'stabilityai/stable-diffusion-xl-base-1.0', kind: 'openai' },
+  'sdxl-legacy':           { label: 'Stable Diffusion XL (HF legacy)',     url: HF_INFERENCE + '/stabilityai/stable-diffusion-xl-base-1.0',     model: null,                                    kind: 'binary' },
+};
+const IMAGE_MODELS_FALLBACK = ['flux-schnell-nebius', 'flux-schnell-together', 'flux-schnell-fal', 'sdxl-legacy'];
 
 async function fetchToBase64(url) {
   const r = await fetch(url);
@@ -35,6 +39,7 @@ async function fetchToBase64(url) {
 }
 
 async function tryImageProvider(p, prompt, apiKey) {
+  if (!p) return { error: 'modello sconosciuto' };
   try {
     if (p.kind === 'openai') {
       const resp = await fetch(p.url, {
@@ -43,25 +48,25 @@ async function tryImageProvider(p, prompt, apiKey) {
         body: JSON.stringify({ model: p.model, prompt, n: 1, response_format: 'b64_json', size: '1024x1024' }),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) return { error: `${p.name} HTTP ${resp.status}: ${data?.error?.message || data?.error || data?.message || resp.statusText}` };
+      if (!resp.ok) return { error: `${p.label || p.kind} HTTP ${resp.status}: ${data?.error?.message || data?.error || data?.message || resp.statusText}` };
       const item = data?.data?.[0];
       if (item?.b64_json) return { contentType: 'image/png', base64: item.b64_json };
       if (item?.url) {
         const f = await fetchToBase64(item.url);
         return f;
       }
-      return { error: `${p.name}: risposta inattesa` };
+      return { error: `${p.label || p.kind}: risposta inattesa` };
     }
     if (p.kind === 'fal') {
       const resp = await fetch(p.url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ prompt, image_size: 'square_hd', num_inference_steps: 4 }),
+        body: JSON.stringify({ prompt, image_size: 'square_hd' }),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) return { error: `${p.name} HTTP ${resp.status}: ${data?.error || data?.message || resp.statusText}` };
+      if (!resp.ok) return { error: `${p.label || p.kind} HTTP ${resp.status}: ${data?.error || data?.message || resp.statusText}` };
       const url = data?.images?.[0]?.url || data?.image?.url;
-      if (!url) return { error: `${p.name}: nessuna immagine` };
+      if (!url) return { error: `${p.label || p.kind}: nessuna immagine` };
       return await fetchToBase64(url);
     }
     if (p.kind === 'binary') {
@@ -72,7 +77,7 @@ async function tryImageProvider(p, prompt, apiKey) {
       });
       const ctype = resp.headers.get('content-type') || '';
       if (!resp.ok || ctype.includes('application/json')) {
-        let msg = `${p.name} HTTP ${resp.status}`;
+        let msg = `${p.label || p.kind} HTTP ${resp.status}`;
         try { const j = await resp.json(); msg += ': ' + (j.error || j.message || ''); } catch {}
         return { error: msg };
       }
@@ -80,7 +85,7 @@ async function tryImageProvider(p, prompt, apiKey) {
       return { contentType: ctype, base64: Buffer.from(buf).toString('base64') };
     }
   } catch (e) {
-    return { error: `${p.name}: ${e.message}` };
+    return { error: `${p.label || p.kind}: ${e.message}` };
   }
   return { error: 'unknown provider' };
 }
@@ -187,31 +192,30 @@ export default async (req) => {
     }
   }
 
+  // ── List available image models (public-ish — needs auth like everything below) ──
+  if (action === 'image-models') {
+    return json({ models: Object.entries(IMAGE_MODELS).map(([id, m]) => ({ id, label: m.label })) });
+  }
+
   // ── Text-to-Image (Hugging Face Inference Providers, with cascade) ──
   if (action === 'image') {
     const apiKey = process.env.HUGGINGFACE_API_KEY;
     if (!apiKey) return json({ error: { message: 'HUGGINGFACE_API_KEY non configurata su Netlify.' } }, 500);
     const prompt = (body.prompt || '').toString().trim();
     if (!prompt) return json({ error: { message: 'prompt richiesto.' } }, 400);
-    const errors = [];
-    for (const p of IMAGE_PROVIDERS) {
-      const r = await tryImageProvider(p, prompt, apiKey);
-      if (!r.error) return json({ dataUrl: `data:${r.contentType};base64,${r.base64}`, provider: p.name });
-      errors.push(r.error);
-    }
-    return json({ error: { message: 'Nessun provider HF disponibile. Attiva un provider (Nebius/Together/Fal-ai) sul tuo account HuggingFace → Inference Providers. Dettagli: ' + errors.join(' | ') } }, 502);
-  }
 
-  // ── Text-to-Video (Hugging Face) ──
-  if (action === 'video') {
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
-    if (!apiKey) return json({ error: { message: 'HUGGINGFACE_API_KEY non configurata su Netlify.' } }, 500);
-    const prompt = (body.prompt || '').toString().trim();
-    if (!prompt) return json({ error: { message: 'prompt richiesto.' } }, 400);
-    const model = body.model || DEFAULT_VIDEO_MODEL;
-    const r = await hfBinary(model, { inputs: prompt }, apiKey);
-    if (r.error) return json({ error: { message: r.error } }, r.status || 502);
-    return json({ dataUrl: `data:${r.contentType};base64,${r.base64}`, model });
+    const chosen = body.imageModel && IMAGE_MODELS[body.imageModel] ? body.imageModel : null;
+    const order = [];
+    if (chosen) order.push(chosen);
+    for (const id of IMAGE_MODELS_FALLBACK) if (!order.includes(id)) order.push(id);
+
+    const errors = [];
+    for (const id of order) {
+      const r = await tryImageProvider(IMAGE_MODELS[id], prompt, apiKey);
+      if (!r.error) return json({ dataUrl: `data:${r.contentType};base64,${r.base64}`, model: id });
+      errors.push(`[${id}] ${r.error}`);
+    }
+    return json({ error: { message: 'Tutti i provider hanno fallito. Verifica i provider HF Inference attivati sul tuo account. Dettagli: ' + errors.join(' | ') } }, 502);
   }
 
   // ── Meta Graph API Proxy ──
